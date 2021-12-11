@@ -87,13 +87,22 @@ def theme_func_dark():
     }}
     div[data-testid*="stTable"] > table > thead > tr > th {{
         border-color: white;
+        color: white;
+        font-weight: 550;
+        border-top: 1px solid rgba(255, 255, 255, 0.7);
+        border-left: 1px solid rgba(255, 255, 255, 0.7);
     }}
     div[data-testid*="stTable"] > table > tbody > tr > th {{
         border-color: white;
+        color: white;
+        font-weight: 550;
+        border-left: 1px solid rgba(255, 255, 255, 0.7);
     }}
     div[data-testid*="stTable"] > table > tbody > tr > td {{
         border-top: 1px solid rgba(255, 255, 255, 0.7);
         border-bottom: 1px solid rgba(255, 255, 255, 0.7);
+        border-left: 1px solid rgba(255, 255, 255, 0.7);
+        border-right: 1px solid rgba(255, 255, 255, 0.7);
     }}
     .stDataFrame > div {{
         background-color: white;
@@ -211,6 +220,14 @@ def theme_func_light():
     }}
     .stSlider > label {{
         color: rgb(38, 39, 48);
+    }}
+    div[data-testid*="stTable"] > table > thead > tr > th {{
+        color: rgb(38, 39, 48);
+        font-weight: 550;
+    }}
+    div[data-testid*="stTable"] > table > tbody > tr > th {{
+        color: rgb(38, 39, 48);
+        font-weight: 550;
     }}
     </style> 
     

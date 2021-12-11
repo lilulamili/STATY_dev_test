@@ -22,8 +22,6 @@ import itertools
 import statsmodels.api as sm
 from scipy import stats 
 import sys
-from streamlit import caching
-import SessionState
 import platform
 import base64
 from io import BytesIO
@@ -39,19 +37,27 @@ from factor_analyzer.factor_analyzer import calculate_kmo
 def app():
 
     # Clear cache
-    caching.clear_cache()
+    st.legacy_caching.clear_cache()
 
     # Hide traceback in error messages (comment out for de-bugging)
-    #sys.tracebacklimit = 0
+    sys.tracebacklimit = 0
 
     # Show altair tooltip when full screen
     st.markdown('<style>#vg-tooltip-element{z-index: 1000051}</style>',unsafe_allow_html=True)
 
+    #++++++++++++++++++++++++++++++++++++++++++++
+    # RESET INPUT
     #Session state
-    session_state = SessionState.get(id = 0)
+    if 'key' not in st.session_state:
+        st.session_state['key'] = 0
+    reset_clicked = st.sidebar.button("Reset all your input")
+    if reset_clicked:
+        st.session_state['key'] = st.session_state['key'] + 1
+    st.sidebar.markdown("")
+
 
     # Analysis type
-    analysis_type = st.selectbox("What kind of analysis would you like to conduct?", ["Regression", "Multi-class classification", "Data decomposition"], key = session_state.id)
+    analysis_type = st.selectbox("What kind of analysis would you like to conduct?", ["Regression", "Multi-class classification", "Data decomposition"], key = st.session_state['key'])
 
     st.header("**Multivariate data**")
 
@@ -64,37 +70,39 @@ def app():
 
     #------------------------------------------------------------------------------------------
 
+    
+
     #++++++++++++++++++++++++++++++++++++++++++++
     # DATA IMPORT
 
     # File upload section
-    df_dec = st.sidebar.radio("Get data", ["Use example dataset", "Upload data"])
+    df_dec = st.sidebar.radio("Get data", ["Use example dataset", "Upload data"], key = st.session_state['key'])
     uploaded_data=None
     if df_dec == "Upload data":
         #st.subheader("Upload your data")
         #uploaded_data = st.sidebar.file_uploader("Make sure that dot (.) is a decimal separator!", type=["csv", "txt"])
-        separator_expander=st.sidebar.beta_expander('Upload settings')
+        separator_expander=st.sidebar.expander('Upload settings')
         with separator_expander:
                       
-            a4,a5=st.beta_columns(2)
+            a4,a5=st.columns(2)
             with a4:
-                dec_sep=a4.selectbox("Decimal sep.",['.',','], key = session_state.id)
+                dec_sep=a4.selectbox("Decimal sep.",['.',','], key = st.session_state['key'])
 
             with a5:
-                col_sep=a5.selectbox("Column sep.",[';',  ','  , '|', '\s+', '\t','other'], key = session_state.id)
+                col_sep=a5.selectbox("Column sep.",[';',  ','  , '|', '\s+', '\t','other'], key = st.session_state['key'])
                 if col_sep=='other':
-                    col_sep=st.text_input('Specify your column separator', key = session_state.id)     
+                    col_sep=st.text_input('Specify your column separator', key = st.session_state['key'])     
 
-            a4,a5=st.beta_columns(2)  
+            a4,a5=st.columns(2)  
             with a4:    
-                thousands_sep=a4.selectbox("Thousands x sep.",[None,'.', ' ','\s+', 'other'], key = session_state.id)
+                thousands_sep=a4.selectbox("Thousands x sep.",[None,'.', ' ','\s+', 'other'], key = st.session_state['key'])
                 if thousands_sep=='other':
-                    thousands_sep=st.text_input('Specify your thousands separator', key = session_state.id)  
+                    thousands_sep=st.text_input('Specify your thousands separator', key = st.session_state['key'])  
              
             with a5:    
-                encoding_val=a5.selectbox("Encoding",[None,'utf_8','utf_8_sig','utf_16_le','cp1140','cp1250','cp1251','cp1252','cp1253','cp1254','other'], key = session_state.id)
+                encoding_val=a5.selectbox("Encoding",[None,'utf_8','utf_8_sig','utf_16_le','cp1140','cp1250','cp1251','cp1252','cp1253','cp1254','other'], key = st.session_state['key'])
                 if encoding_val=='other':
-                    encoding_val=st.text_input('Specify your encoding', key = session_state.id)  
+                    encoding_val=st.text_input('Specify your encoding', key = st.session_state['key'])  
         
         # Error handling for separator selection:
         if dec_sep==col_sep: 
@@ -133,15 +141,15 @@ def app():
     #++++++++++++++++++++++++++++++++++++++++++++
     # SETTINGS
 
-    settings_expander=st.sidebar.beta_expander('Settings')
+    settings_expander=st.sidebar.expander('Settings')
     with settings_expander:
         st.caption("**Precision**")
-        user_precision=st.number_input('Number of digits after the decimal point',min_value=0,max_value=10,step=1,value=4)
+        user_precision=int(st.number_input('Number of digits after the decimal point',min_value=0,max_value=10,step=1,value=4, key = st.session_state['key']))
         st.caption("**Help**")
-        sett_hints = st.checkbox('Show learning hints', value=False)
+        sett_hints = st.checkbox('Show learning hints', value=False, key = st.session_state['key'])
         st.caption("**Appearance**")
-        sett_wide_mode = st.checkbox('Wide mode', value=False)
-        sett_theme = st.selectbox('Theme', ["Light", "Dark"])
+        sett_wide_mode = st.checkbox('Wide mode', value=False, key = st.session_state['key'])
+        sett_theme = st.selectbox('Theme', ["Light", "Dark"], key = st.session_state['key'])
         #sett_info = st.checkbox('Show methods info', value=False)
         #sett_prec = st.number_input('Set the number of diggits for the output', min_value=0, max_value=8, value=2)
     st.sidebar.markdown("")
@@ -157,14 +165,6 @@ def app():
         fc.theme_func_light()
     fc.theme_func_dl_button()
 
-    #++++++++++++++++++++++++++++++++++++++++++++
-    # RESET INPUT
-
-    reset_clicked = st.sidebar.button("Reset all your input")
-    if reset_clicked:
-        session_state.id = session_state.id + 1
-    st.sidebar.markdown("")
-
     #------------------------------------------------------------------------------------------
 
     
@@ -178,7 +178,7 @@ def app():
         st.error("ERROR: Not enough data!")
         return
     
-    data_exploration_container = st.beta_container()
+    data_exploration_container = st.container()
     with data_exploration_container:
 
         st.header("**Data screening and processing**")
@@ -191,93 +191,93 @@ def app():
         # Main panel for data summary (pre)
         #----------------------------------
 
-        dev_expander_dsPre = st.beta_expander("Explore raw data info and stats ", expanded = False)
+        dev_expander_dsPre = st.expander("Explore raw data info and stats ", expanded = False)
         with dev_expander_dsPre:
 
             # Default data description:
             if uploaded_data == None:
                 if analysis_type == "Regression" or analysis_type == "Data decomposition":
-                    if st.checkbox("Show data description", value = False, key = session_state.id):          
+                    if st.checkbox("Show data description", value = False, key = st.session_state['key']):          
                         st.markdown("**Data source:**")
                         st.markdown("The data come from the Gallup World Poll surveys from 2018 to 2020. For more details see the [World Happiness Report 2021] (https://worldhappiness.report/).")
                         st.markdown("**Citation:**")
                         st.markdown("Helliwell, John F., Richard Layard, Jeffrey Sachs, and Jan-Emmanuel De Neve, eds. 2021. World Happiness Report 2021. New York: Sustainable Development Solutions Network.")
                         st.markdown("**Variables in the dataset:**")
 
-                        col1,col2=st.beta_columns(2) 
+                        col1,col2=st.columns(2) 
                         col1.write("Country")
                         col2.write("country name")
                         
-                        col1,col2=st.beta_columns(2)
+                        col1,col2=st.columns(2)
                         col1.write("Year ")
                         col2.write("year ranging from 2005 to 2020")
                         
-                        col1,col2=st.beta_columns(2) 
+                        col1,col2=st.columns(2) 
                         col1.write("Ladder")
                         col2.write("happiness  score  or  subjective  well-being with the best possible life being a 10, and the worst possible life being a 0")
                         
-                        col1,col2=st.beta_columns(2) 
+                        col1,col2=st.columns(2) 
                         col1.write("Log GDP per capita")
                         col2.write("in purchasing power parity at  constant  2017  international  dollar  prices")
                         
-                        col1,col2=st.beta_columns(2) 
+                        col1,col2=st.columns(2) 
                         col1.write("Social support")
                         col2.write("the national average of the binary responses (either 0 or 1) to the question regarding relatives or friends to count on")
                         
-                        col1,col2=st.beta_columns(2) 
+                        col1,col2=st.columns(2) 
                         col1.write("Healthy life expectancy at birth")
                         col2.write("based on  the  data  extracted  from  the  World  Health  Organization’s  Global Health Observatory data repository")
                     
-                        col1,col2=st.beta_columns(2) 
+                        col1,col2=st.columns(2) 
                         col1.write("Freedom to make life choices")
                         col2.write("national average of responses to the corresponding question")
 
-                        col1,col2=st.beta_columns(2) 
+                        col1,col2=st.columns(2) 
                         col1.write("Generosity")
                         col2.write("residual of regressing national average of response to the question regarding money donations in the past month on GDP per capita")
 
-                        col1,col2=st.beta_columns(2) 
+                        col1,col2=st.columns(2) 
                         col1.write("Perceptions of corruption")
                         col2.write("the national average of the survey responses to the corresponding question")
                         
-                        col1,col2=st.beta_columns(2) 
+                        col1,col2=st.columns(2) 
                         col1.write("Positive affect")
                         col2.write("the  average  of  three  positive  affect  measures (happiness,  laugh  and  enjoyment)")
                         
-                        col1,col2=st.beta_columns(2)
+                        col1,col2=st.columns(2)
                         col1.write("Negative affect (worry, sadness and anger)")
                         col2.write("the  average  of  three  negative  affect  measures  (worry, sadness and anger)")
 
                         st.markdown("")
                 if analysis_type == "Multi-class classification":
-                    if st.checkbox("Show data description", value = False, key = session_state.id):          
+                    if st.checkbox("Show data description", value = False, key = st.session_state['key']):          
                         st.markdown("**Data source:**")
                         st.markdown("The data come from Fisher's Iris data set. See [here] (https://archive.ics.uci.edu/ml/datasets/iris) for more information.")
                         st.markdown("**Citation:**")
                         st.markdown("Fisher, R. A. (1936). The use of multiple measurements in taxonomic problems. Annals of Eugenics, 7(2): 179–188. doi: [10.1111/j.1469-1809.1936.tb02137.x] (https://doi.org/10.1111%2Fj.1469-1809.1936.tb02137.x)")
                         st.markdown("**Variables in the dataset:**")
 
-                        col1,col2=st.beta_columns(2) 
+                        col1,col2=st.columns(2) 
                         col1.write("class_category")
                         col2.write("Numerical category for 'class': Iris Setosa (0), Iris Versicolour (1), and Iris Virginica (2)")
                         
-                        col1,col2=st.beta_columns(2) 
+                        col1,col2=st.columns(2) 
                         col1.write("class")
                         col2.write("Iris Setosa, Iris Versicolour, and Iris Virginica")
                         
-                        col1,col2=st.beta_columns(2) 
+                        col1,col2=st.columns(2) 
                         col1.write("sepal length")
                         col2.write("sepal length in cm")
                         
-                        col1,col2=st.beta_columns(2)
+                        col1,col2=st.columns(2)
                         col1.write("sepal width")
                         col2.write("sepal width in cm")
                         
-                        col1,col2=st.beta_columns(2) 
+                        col1,col2=st.columns(2) 
                         col1.write("petal length")
                         col2.write("petal length in cm")
                         
-                        col1,col2=st.beta_columns(2) 
+                        col1,col2=st.columns(2) 
                         col1.write("petal width")
                         col2.write("petal width in cm")                       
                         
@@ -285,12 +285,12 @@ def app():
 
             # Show raw data & data info
             df_summary = fc.data_summary(df) 
-            if st.checkbox("Show raw data ", value = False, key = session_state.id):      
+            if st.checkbox("Show raw data ", value = False, key = st.session_state['key']):      
                 st.write(df)
 
                 st.write("Data shape: ", n_rows,  " rows and ", n_cols, " columns")
             if df[df.duplicated()].shape[0] > 0 or df.iloc[list(pd.unique(np.where(df.isnull())[0]))].shape[0] > 0:
-                check_nasAnddupl=st.checkbox("Show duplicates and NAs info ", value = False, key = session_state.id) 
+                check_nasAnddupl=st.checkbox("Show duplicates and NAs info ", value = False, key = st.session_state['key']) 
                 if check_nasAnddupl:      
                     if df[df.duplicated()].shape[0] > 0:
                         st.write("Number of duplicates: ", df[df.duplicated()].shape[0])
@@ -300,11 +300,11 @@ def app():
                         st.write("Rows with NAs: ", ', '.join(map(str,list(pd.unique(np.where(df.isnull())[0])))))
                 
             # Show variable info 
-            if st.checkbox('Show variable info ', value = False, key = session_state.id): 
+            if st.checkbox('Show variable info ', value = False, key = st.session_state['key']): 
                 st.write(df_summary["Variable types"])
         
             # Show summary statistics (raw data)
-            if st.checkbox('Show summary statistics (raw data) ', value = False, key = session_state.id): 
+            if st.checkbox('Show summary statistics (raw data) ', value = False, key = st.session_state['key']): 
                 st.write(df_summary["ALL"].style.set_precision(user_precision))
                 
                 # Download link for summary statistics
@@ -335,15 +335,15 @@ def app():
         #-------------------------------------
 
         #st.subheader("Data processing")
-        dev_expander_dm_sb = st.beta_expander("Specify data processing preferences", expanded = False)
+        dev_expander_dm_sb = st.expander("Specify data processing preferences", expanded = False)
         with dev_expander_dm_sb:
             
             n_rows_wNAs = df.iloc[list(pd.unique(np.where(df.isnull())[0]))].shape[0]
             n_rows_wNAs_pre_processing = "No"
             if n_rows_wNAs > 0:
                 n_rows_wNAs_pre_processing = "Yes"
-                a1, a2, a3 = st.beta_columns(3)
-            else: a1, a3 = st.beta_columns(2)
+                a1, a2, a3 = st.columns(3)
+            else: a1, a3 = st.columns(2)
             
             sb_DM_dImp_num = None 
             sb_DM_dImp_other = None
@@ -357,11 +357,11 @@ def app():
                 st.markdown("**Data cleaning**")
 
                 # Delete rows
-                delRows =st.selectbox('Delete rows with index ...', options=['-', 'greater', 'greater or equal', 'smaller', 'smaller or equal', 'equal', 'between'], key = session_state.id)
+                delRows =st.selectbox('Delete rows with index ...', options=['-', 'greater', 'greater or equal', 'smaller', 'smaller or equal', 'equal', 'between'], key = st.session_state['key'])
                 if delRows!='-':                                
                     if delRows=='between':
-                        row_1=st.number_input('Lower limit is', value=0, step=1, min_value= 0, max_value=len(df)-1, key = session_state.id)
-                        row_2=st.number_input('Upper limit is', value=2, step=1, min_value= 0, max_value=len(df)-1, key = session_state.id)
+                        row_1=st.number_input('Lower limit is', value=0, step=1, min_value= 0, max_value=len(df)-1, key = st.session_state['key'])
+                        row_2=st.number_input('Upper limit is', value=2, step=1, min_value= 0, max_value=len(df)-1, key = st.session_state['key'])
                         if (row_1 + 1) < row_2 :
                             sb_DM_delRows=df.index[(df.index > row_1) & (df.index < row_2)]
                         elif (row_1 + 1) == row_2 : 
@@ -372,9 +372,9 @@ def app():
                             st.error("ERROR: Lower limit must be smaller than upper limit!")  
                             return                   
                     elif delRows=='equal':
-                        sb_DM_delRows = st.multiselect("to...", df.index, key = session_state.id)
+                        sb_DM_delRows = st.multiselect("to...", df.index, key = st.session_state['key'])
                     else:
-                        row_1=st.number_input('than...', step=1, value=1, min_value = 0, max_value=len(df)-1, key = session_state.id)                    
+                        row_1=st.number_input('than...', step=1, value=1, min_value = 0, max_value=len(df)-1, key = st.session_state['key'])                    
                         if delRows=='greater':
                             sb_DM_delRows=df.index[df.index > row_1]
                             if row_1 == len(df)-1:
@@ -398,11 +398,11 @@ def app():
                         no_delRows=n_rows-df.shape[0]
 
                 # Keep rows
-                keepRows =st.selectbox('Keep rows with index ...', options=['-', 'greater', 'greater or equal', 'smaller', 'smaller or equal', 'equal', 'between'], key = session_state.id)
+                keepRows =st.selectbox('Keep rows with index ...', options=['-', 'greater', 'greater or equal', 'smaller', 'smaller or equal', 'equal', 'between'], key = st.session_state['key'])
                 if keepRows!='-':                                
                     if keepRows=='between':
-                        row_1=st.number_input('Lower limit is', value=0, step=1, min_value= 0, max_value=len(df)-1, key = session_state.id)
-                        row_2=st.number_input('Upper limit is', value=2, step=1, min_value= 0, max_value=len(df)-1, key = session_state.id)
+                        row_1=st.number_input('Lower limit is', value=0, step=1, min_value= 0, max_value=len(df)-1, key = st.session_state['key'])
+                        row_2=st.number_input('Upper limit is', value=2, step=1, min_value= 0, max_value=len(df)-1, key = st.session_state['key'])
                         if (row_1 + 1) < row_2 :
                             sb_DM_keepRows=df.index[(df.index > row_1) & (df.index < row_2)]
                         elif (row_1 + 1) == row_2 : 
@@ -415,9 +415,9 @@ def app():
                             st.error("ERROR: Lower limit must be smaller than upper limit!")  
                             return                   
                     elif keepRows=='equal':
-                        sb_DM_keepRows = st.multiselect("to...", df.index, key = session_state.id)
+                        sb_DM_keepRows = st.multiselect("to...", df.index, key = st.session_state['key'])
                     else:
-                        row_1=st.number_input('than...', step=1, value=1, min_value = 0, max_value=len(df)-1, key = session_state.id)                    
+                        row_1=st.number_input('than...', step=1, value=1, min_value = 0, max_value=len(df)-1, key = st.session_state['key'])                    
                         if keepRows=='greater':
                             sb_DM_keepRows=df.index[df.index > row_1]
                             if row_1 == len(df)-1:
@@ -439,17 +439,17 @@ def app():
                         no_keptRows=df.shape[0]
 
                 # Delete columns
-                sb_DM_delCols = st.multiselect("Select columns to delete ", df.columns, key = session_state.id)
+                sb_DM_delCols = st.multiselect("Select columns to delete ", df.columns, key = st.session_state['key'])
                 df = df.loc[:,~df.columns.isin(sb_DM_delCols)]
 
                 # Keep columns
-                sb_DM_keepCols = st.multiselect("Select columns to keep", df.columns, key = session_state.id)
+                sb_DM_keepCols = st.multiselect("Select columns to keep", df.columns, key = st.session_state['key'])
                 if len(sb_DM_keepCols) > 0:
                     df = df.loc[:,df.columns.isin(sb_DM_keepCols)]
 
                 # Delete duplicates if any exist
                 if df[df.duplicated()].shape[0] > 0:
-                    sb_DM_delDup = st.selectbox("Delete duplicate rows ", ["No", "Yes"], key = session_state.id)
+                    sb_DM_delDup = st.selectbox("Delete duplicate rows ", ["No", "Yes"], key = st.session_state['key'])
                     if sb_DM_delDup == "Yes":
                         n_rows_dup = df[df.duplicated()].shape[0]
                         df = df.drop_duplicates()
@@ -459,7 +459,7 @@ def app():
                 # Delete rows with NA if any exist
                 n_rows_wNAs = df.iloc[list(pd.unique(np.where(df.isnull())[0]))].shape[0]
                 if n_rows_wNAs > 0:
-                    sb_DM_delRows_wNA = st.selectbox("Delete rows with NAs ", ["No", "Yes"], key = session_state.id)
+                    sb_DM_delRows_wNA = st.selectbox("Delete rows with NAs ", ["No", "Yes"], key = st.session_state['key'])
                     if sb_DM_delRows_wNA == "Yes": 
                         df = df.dropna()
                 elif n_rows_wNAs == 0: 
@@ -467,7 +467,7 @@ def app():
 
                 # Filter data
                 st.markdown("**Data filtering**")
-                filter_var = st.selectbox('Filter your data by a variable...', list('-')+ list(df.columns), key = session_state.id)
+                filter_var = st.selectbox('Filter your data by a variable...', list('-')+ list(df.columns), key = st.session_state['key'])
                 if filter_var !='-':
                     
                     if df[filter_var].dtypes=="int64" or df[filter_var].dtypes=="float64": 
@@ -476,11 +476,11 @@ def app():
                         else:
                             filter_format=None
 
-                        user_filter=st.selectbox('Select values that are ...', options=['greater','greater or equal','smaller','smaller or equal', 'equal','between'], key = session_state.id)
+                        user_filter=st.selectbox('Select values that are ...', options=['greater','greater or equal','smaller','smaller or equal', 'equal','between'], key = st.session_state['key'])
                                                 
                         if user_filter=='between':
-                            filter_1=st.number_input('Lower limit is', format=filter_format, value=df[filter_var].min(), min_value=df[filter_var].min(), max_value=df[filter_var].max(), key = session_state.id)
-                            filter_2=st.number_input('Upper limit is', format=filter_format, value=df[filter_var].max(), min_value=df[filter_var].min(), max_value=df[filter_var].max(), key = session_state.id)
+                            filter_1=st.number_input('Lower limit is', format=filter_format, value=df[filter_var].min(), min_value=df[filter_var].min(), max_value=df[filter_var].max(), key = st.session_state['key'])
+                            filter_2=st.number_input('Upper limit is', format=filter_format, value=df[filter_var].max(), min_value=df[filter_var].min(), max_value=df[filter_var].max(), key = st.session_state['key'])
                             #reclassify values:
                             if filter_1 < filter_2 :
                                 df = df[(df[filter_var] > filter_1) & (df[filter_var] < filter_2)] 
@@ -491,12 +491,12 @@ def app():
                                 st.error("ERROR: Lower limit must be smaller than upper limit!")  
                                 return                    
                         elif user_filter=='equal':                            
-                            filter_1=st.multiselect('to... ', options=df[filter_var].values, key = session_state.id)
+                            filter_1=st.multiselect('to... ', options=df[filter_var].values, key = st.session_state['key'])
                             if len(filter_1)>0:
                                 df = df.loc[df[filter_var].isin(filter_1)]
 
                         else:
-                            filter_1=st.number_input('than... ',format=filter_format, value=df[filter_var].min(), min_value=df[filter_var].min(), max_value=df[filter_var].max(), key = session_state.id)
+                            filter_1=st.number_input('than... ',format=filter_format, value=df[filter_var].min(), min_value=df[filter_var].min(), max_value=df[filter_var].max(), key = st.session_state['key'])
                             #reclassify values:
                             if user_filter=='greater':
                                 df = df[df[filter_var] > filter_1]
@@ -513,7 +513,7 @@ def app():
                             elif len(df) == n_rows:
                                 st.warning("WARNING: Data are not filtered for this value!")         
                     else:                  
-                        filter_1=st.multiselect('Filter your data by a value...', (df[filter_var]).unique(), key = session_state.id)
+                        filter_1=st.multiselect('Filter your data by a value...', (df[filter_var]).unique(), key = st.session_state['key'])
                         if len(filter_1)>0:
                             df = df.loc[df[filter_var].isin(filter_1)]
                 
@@ -525,12 +525,12 @@ def app():
                     # Select data imputation method (only if rows with NA not deleted)
                     if sb_DM_delRows_wNA == "No" and n_rows_wNAs > 0:
                         st.markdown("**Data imputation**")
-                        sb_DM_dImp_choice = st.selectbox("Replace entries with NA ", ["No", "Yes"], key = session_state.id)
+                        sb_DM_dImp_choice = st.selectbox("Replace entries with NA ", ["No", "Yes"], key = st.session_state['key'])
                         if sb_DM_dImp_choice == "Yes":
                             # Numeric variables
-                            sb_DM_dImp_num = st.selectbox("Imputation method for numeric variables ", ["Mean", "Median", "Random value"], key = session_state.id)
+                            sb_DM_dImp_num = st.selectbox("Imputation method for numeric variables ", ["Mean", "Median", "Random value"], key = st.session_state['key'])
                             # Other variables
-                            sb_DM_dImp_other = st.selectbox("Imputation method for other variables ", ["Mode", "Random value"], key = session_state.id)
+                            sb_DM_dImp_other = st.selectbox("Imputation method for other variables ", ["Mode", "Random value"], key = st.session_state['key'])
                             df = fc.data_impute(df, sb_DM_dImp_num, sb_DM_dImp_other)
                     else:
                         st.markdown("**Data imputation**")
@@ -545,28 +545,28 @@ def app():
                 # Select columns for different transformation types
                 transform_options = df.select_dtypes([np.number]).columns
                 numCat_options = df.columns
-                sb_DM_dTrans_log = st.multiselect("Select columns to transform with log ", transform_options, key = session_state.id)
+                sb_DM_dTrans_log = st.multiselect("Select columns to transform with log ", transform_options, key = st.session_state['key'])
                 if sb_DM_dTrans_log is not None: 
                     df = fc.var_transform_log(df, sb_DM_dTrans_log)
-                sb_DM_dTrans_sqrt = st.multiselect("Select columns to transform with sqrt ", transform_options, key = session_state.id)
+                sb_DM_dTrans_sqrt = st.multiselect("Select columns to transform with sqrt ", transform_options, key = st.session_state['key'])
                 if sb_DM_dTrans_sqrt is not None: 
                     df = fc.var_transform_sqrt(df, sb_DM_dTrans_sqrt)
-                sb_DM_dTrans_square = st.multiselect("Select columns for squaring ", transform_options, key = session_state.id)
+                sb_DM_dTrans_square = st.multiselect("Select columns for squaring ", transform_options, key = st.session_state['key'])
                 if sb_DM_dTrans_square is not None: 
                     df = fc.var_transform_square(df, sb_DM_dTrans_square)
-                sb_DM_dTrans_cent = st.multiselect("Select columns for centering ", transform_options, key = session_state.id)
+                sb_DM_dTrans_cent = st.multiselect("Select columns for centering ", transform_options, key = st.session_state['key'])
                 if sb_DM_dTrans_cent is not None: 
                     df = fc.var_transform_cent(df, sb_DM_dTrans_cent)
-                sb_DM_dTrans_stand = st.multiselect("Select columns for standardization ", transform_options, key = session_state.id)
+                sb_DM_dTrans_stand = st.multiselect("Select columns for standardization ", transform_options, key = st.session_state['key'])
                 if sb_DM_dTrans_stand is not None: 
                     df = fc.var_transform_stand(df, sb_DM_dTrans_stand)
-                sb_DM_dTrans_norm = st.multiselect("Select columns for normalization ", transform_options, key = session_state.id)
+                sb_DM_dTrans_norm = st.multiselect("Select columns for normalization ", transform_options, key = st.session_state['key'])
                 if sb_DM_dTrans_norm is not None: 
                     df = fc.var_transform_norm(df, sb_DM_dTrans_norm)
-                sb_DM_dTrans_numCat = st.multiselect("Select columns for numeric categorization ", numCat_options, key = session_state.id)
+                sb_DM_dTrans_numCat = st.multiselect("Select columns for numeric categorization ", numCat_options, key = st.session_state['key'])
                 if sb_DM_dTrans_numCat:
                     if not df[sb_DM_dTrans_numCat].columns[df[sb_DM_dTrans_numCat].isna().any()].tolist(): 
-                        sb_DM_dTrans_numCat_sel = st.multiselect("Select variables for manual categorization ", sb_DM_dTrans_numCat, key = session_state.id)
+                        sb_DM_dTrans_numCat_sel = st.multiselect("Select variables for manual categorization ", sb_DM_dTrans_numCat, key = st.session_state['key'])
                         if sb_DM_dTrans_numCat_sel:
                             for var in sb_DM_dTrans_numCat_sel:
                                 if df[var].unique().size > 5: 
@@ -578,7 +578,7 @@ def app():
                                     # Save manually selected categories
                                     for i in range(0, df[var].unique().size):
                                         text1 = text + str(var) + ": " + str(sorted(df[var].unique())[i])
-                                        man_cat = st.number_input(text1, value = 0, min_value=0, key = session_state.id)
+                                        man_cat = st.number_input(text1, value = 0, min_value=0, key = st.session_state['key'])
                                         manual_cats.loc[i]["Value"] = sorted(df[var].unique())[i]
                                         manual_cats.loc[i]["Cat"] = man_cat
                                     
@@ -601,27 +601,27 @@ def app():
                         return
                 else:
                     sb_DM_dTrans_numCat = None
-                sb_DM_dTrans_mult = st.number_input("Number of variable multiplications ", value = 0, min_value=0, key = session_state.id)
+                sb_DM_dTrans_mult = st.number_input("Number of variable multiplications ", value = 0, min_value=0, key = st.session_state['key'])
                 if sb_DM_dTrans_mult != 0: 
                     multiplication_pairs = pd.DataFrame(index = range(0, sb_DM_dTrans_mult), columns=["Var1", "Var2"])
                     text = "Multiplication pair"
                     for i in range(0, sb_DM_dTrans_mult):
                         text1 = text + " " + str(i+1)
                         text2 = text + " " + str(i+1) + " "
-                        mult_var1 = st.selectbox(text1, transform_options, key = session_state.id)
-                        mult_var2 = st.selectbox(text2, transform_options, key = session_state.id)
+                        mult_var1 = st.selectbox(text1, transform_options, key = st.session_state['key'])
+                        mult_var2 = st.selectbox(text2, transform_options, key = st.session_state['key'])
                         multiplication_pairs.loc[i]["Var1"] = mult_var1
                         multiplication_pairs.loc[i]["Var2"] = mult_var2
                         fc.var_transform_mult(df, mult_var1, mult_var2)
-                sb_DM_dTrans_div = st.number_input("Number of variable divisions ", value = 0, min_value=0, key = session_state.id)
+                sb_DM_dTrans_div = st.number_input("Number of variable divisions ", value = 0, min_value=0, key = st.session_state['key'])
                 if sb_DM_dTrans_div != 0:
                     division_pairs = pd.DataFrame(index = range(0, sb_DM_dTrans_div), columns=["Var1", "Var2"]) 
                     text = "Division pair"
                     for i in range(0, sb_DM_dTrans_div):
                         text1 = text + " " + str(i+1) + " (numerator)"
                         text2 = text + " " + str(i+1) + " (denominator)"
-                        div_var1 = st.selectbox(text1, transform_options, key = session_state.id)
-                        div_var2 = st.selectbox(text2, transform_options, key = session_state.id)
+                        div_var1 = st.selectbox(text1, transform_options, key = st.session_state['key'])
+                        div_var2 = st.selectbox(text2, transform_options, key = st.session_state['key'])
                         division_pairs.loc[i]["Var1"] = div_var1
                         division_pairs.loc[i]["Var2"] = div_var2
                         fc.var_transform_div(df, div_var1, div_var2)
@@ -647,7 +647,7 @@ def app():
             #--------------------------------------------------------------------------------------
             # PROCESSING SUMMARY
             
-            if st.checkbox('Show a summary of my data processing preferences ', value = False, key = session_state.id): 
+            if st.checkbox('Show a summary of my data processing preferences ', value = False, key = st.session_state['key']): 
                 st.markdown("Summary of data changes:")
 
                 #--------------------------------------------------------------------------------------
@@ -800,13 +800,13 @@ def app():
 
         # Show only if changes were made
         if any(v for v in [sb_DM_delCols, sb_DM_dImp_num, sb_DM_dImp_other, sb_DM_dTrans_log, sb_DM_dTrans_sqrt, sb_DM_dTrans_square, sb_DM_dTrans_cent, sb_DM_dTrans_stand, sb_DM_dTrans_norm, sb_DM_dTrans_numCat ] if v is not None) or sb_DM_delDup == "Yes" or sb_DM_delRows_wNA == "Yes" or sb_DM_dTrans_mult != 0 or sb_DM_dTrans_div != 0 or filter_var != "-" or delRows!='-' or keepRows!='-' or len(sb_DM_keepCols) > 0:
-            dev_expander_dsPost = st.beta_expander("Explore cleaned and transformed data info and stats ", expanded = False)
+            dev_expander_dsPost = st.expander("Explore cleaned and transformed data info and stats ", expanded = False)
             with dev_expander_dsPost:
                 if df.shape[1] > 0 and df.shape[0] > 0:
 
                     # Show cleaned and transformed data & data info
                     df_summary_post = fc.data_summary(df)
-                    if st.checkbox("Show cleaned and transformed data ", value = False, key = session_state.id):  
+                    if st.checkbox("Show cleaned and transformed data ", value = False, key = st.session_state['key']):  
                         n_rows_post = df.shape[0]
                         n_cols_post = df.shape[1]
                         st.dataframe(df)
@@ -828,7 +828,7 @@ def app():
                         st.write("")
                     
                     if df[df.duplicated()].shape[0] > 0 or df.iloc[list(pd.unique(np.where(df.isnull())[0]))].shape[0] > 0:
-                        check_nasAnddupl2 = st.checkbox("Show duplicates and NAs info (processed) ", value = False, key = session_state.id) 
+                        check_nasAnddupl2 = st.checkbox("Show duplicates and NAs info (processed) ", value = False, key = st.session_state['key']) 
                         if check_nasAnddupl2:
                             index_c = []
                             for c in df.columns:
@@ -843,11 +843,11 @@ def app():
                                 st.write("Rows with NAs: ", ', '.join(map(str,list(pd.unique(sorted(index_c))))))
 
                     # Show cleaned and transformed variable info
-                    if st.checkbox("Show cleaned and transformed variable info ", value = False, key = session_state.id): 
+                    if st.checkbox("Show cleaned and transformed variable info ", value = False, key = st.session_state['key']): 
                         st.write(df_summary_post["Variable types"])
 
                     # Show summary statistics (cleaned and transformed data)
-                    if st.checkbox('Show summary statistics (cleaned and transformed data) ', value = False, key = session_state.id):
+                    if st.checkbox('Show summary statistics (cleaned and transformed data) ', value = False, key = st.session_state['key']):
                         st.write(df_summary_post["ALL"].style.set_precision(user_precision))
 
                         # Download link
@@ -880,26 +880,26 @@ def app():
     #++++++++++++++++++++++
     # DATA VISUALIZATION
 
-    data_visualization_container = st.beta_container()
+    data_visualization_container = st.container()
     with data_visualization_container:
         st.write("")
         st.write("")
         st.header("**Data visualization**")
 
-        dev_expander_dv = st.beta_expander("Explore visualization types ", expanded = False)
+        dev_expander_dv = st.expander("Explore visualization types ", expanded = False)
         with dev_expander_dv:
             if df.shape[1] > 0 and df.shape[0] > 0:
             
                 st.write('**Variable selection**')
                 varl_sel_options = df.columns
-                var_sel = st.selectbox('Select variable for visualizations', varl_sel_options, key = session_state.id)
+                var_sel = st.selectbox('Select variable for visualizations', varl_sel_options, key = st.session_state['key'])
 
                 if df[var_sel].dtypes == "float64" or df[var_sel].dtypes == "float32" or df[var_sel].dtypes == "int64" or df[var_sel].dtypes == "int32":
-                    a4, a5 = st.beta_columns(2)
+                    a4, a5 = st.columns(2)
                     with a4:
                         st.write('**Scatterplot with LOESS line**')
                         yy_options = df.columns
-                        yy = st.selectbox('Select variable for y-axis', yy_options, key = session_state.id)
+                        yy = st.selectbox('Select variable for y-axis', yy_options, key = st.session_state['key'])
                         if df[yy].dtypes == "float64" or df[yy].dtypes == "float32" or df[yy].dtypes == "int64" or df[yy].dtypes == "int32":
                             fig_data = pd.DataFrame()
                             fig_data[yy] = df[yy]
@@ -916,7 +916,7 @@ def app():
                         else: st.error("ERROR: Please select a numeric variable for the y-axis!")   
                     with a5:
                         st.write('**Histogram**')
-                        binNo = st.slider("Select maximum number of bins", 5, 100, 25, key = session_state.id)
+                        binNo = st.slider("Select maximum number of bins", 5, 100, 25, key = st.session_state['key'])
                         fig2 = alt.Chart(df).mark_bar().encode(
                             x = alt.X(var_sel, title = var_sel + " (binned)", bin = alt.BinParams(maxbins = binNo), axis = alt.Axis(titleFontSize = 12, labelFontSize = 11)),
                             y = alt.Y("count()", title = "count of records", axis = alt.Axis(titleFontSize = 12, labelFontSize = 11)),
@@ -926,7 +926,7 @@ def app():
                         if sett_hints:
                             st.info(str(fc.learning_hints("dv_histogram")))
 
-                    a6, a7 = st.beta_columns(2)
+                    a6, a7 = st.columns(2)
                     with a6:
                         st.write('**Boxplot**')
                         # Boxplot
@@ -970,9 +970,9 @@ def app():
                 if df[column].dtypes in ('float', 'float64', 'int','int64'):                    
                     num_cols.append(column)
             if len(num_cols)>1:
-                show_scatter_matrix=st.checkbox('Show scatter matrix',value=False,key= session_state.id)
+                show_scatter_matrix=st.checkbox('Show scatter matrix',value=False,key= st.session_state['key'])
                 if show_scatter_matrix==True:
-                    multi_var_sel = st.multiselect('Select variables for scatter matrix', num_cols, num_cols, key = session_state.id)
+                    multi_var_sel = st.multiselect('Select variables for scatter matrix', num_cols, num_cols, key = st.session_state['key'])
 
                     if len(multi_var_sel)<2:
                         st.error("ERROR: Please choose at least two variables fro a scatterplot")
@@ -1002,12 +1002,12 @@ def app():
         st.write("")
         st.write("")
         
-        data_machinelearning_container = st.beta_container()
+        data_machinelearning_container = st.container()
         with data_machinelearning_container:
             st.header("**Multivariate data modelling**")
             st.markdown("Go for creating predictive models of your data using classical and machine learning techniques!  STATY will take care of the modelling for you, so you can put your focus on results interpretation and communication! ")
 
-            ml_settings = st.beta_expander("Specify models ", expanded = False)
+            ml_settings = st.expander("Specify models ", expanded = False)
             with ml_settings:
                 
                 # Initial status for running models
@@ -1046,7 +1046,7 @@ def app():
                     
                     # Response variable
                     response_var_options = df.columns
-                    response_var = st.selectbox("Select response variable", response_var_options, key = session_state.id)
+                    response_var = st.selectbox("Select response variable", response_var_options, key = st.session_state['key'])
                     
                     # Check if response variable is numeric and has no NAs
                     response_var_message_num = False
@@ -1070,7 +1070,7 @@ def app():
                         # Select explanatory variables
                         expl_var_options = df.columns
                         expl_var_options = expl_var_options[expl_var_options.isin(df.drop(response_var, axis = 1).columns)]
-                        expl_var = st.multiselect("Select explanatory variables", expl_var_options, key = session_state.id)
+                        expl_var = st.multiselect("Select explanatory variables", expl_var_options, key = st.session_state['key'])
                         var_list = list([response_var]) + list(expl_var)
 
                         # Check if explanatory variables are numeric
@@ -1127,7 +1127,7 @@ def app():
                                 MLR_finalPara["intercept"] = MLR_intercept
                                 MLR_finalPara["covType"] = MLR_cov_type
                                 if st.checkbox("Adjust settings for Multiple Linear Regression"):
-                                    col1, col2 = st.beta_columns(2)
+                                    col1, col2 = st.columns(2)
                                     with col1:
                                         MLR_intercept = st.selectbox("Include intercept", ["Yes", "No"])
                                     with col2:
@@ -1144,7 +1144,7 @@ def app():
                                 LR_finalPara["intercept"] = LR_intercept
                                 LR_finalPara["covType"] = LR_cov_type
                                 if st.checkbox("Adjust settings for Logistic Regression"):
-                                    col1, col2 = st.beta_columns(2)
+                                    col1, col2 = st.columns(2)
                                     with col1:
                                         LR_intercept = st.selectbox("Include intercept   ", ["Yes", "No"])
                                     with col2:
@@ -1163,14 +1163,14 @@ def app():
                                 gam_lam_search = "No"
                                 if st.checkbox("Adjust settings for Generalized Additive Models"):
                                     gam_finalPara = pd.DataFrame(index = ["value"], columns = ["intercept", "number of splines", "spline order", "lambda"])
-                                    col1, col2 = st.beta_columns(2)
+                                    col1, col2 = st.columns(2)
                                     with col1:
                                         gam_intercept = st.selectbox("Include intercept ", ["Yes", "No"])
                                     gam_finalPara["intercept"] = gam_intercept
                                     with col2:
                                         gam_lam_search = st.selectbox("Search for lambda ", ["No", "Yes"])
                                     if gam_lam_search == "Yes":
-                                        ls_col1, ls_col2, ls_col3 = st.beta_columns(3)
+                                        ls_col1, ls_col2, ls_col3 = st.columns(3)
                                         with ls_col1:
                                             ls_min = st.number_input("Minimum lambda value", value=0.001, step=1e-3, min_value=0.001, format="%.3f") 
                                         with ls_col2:
@@ -1182,9 +1182,9 @@ def app():
                                         else:
                                             st.info("Your grid has " + str(ls_number**len(expl_var)) + " combinations.")
                                     if gam_lam_search == "No":
-                                        gam_col1, gam_col2, gam_col3 = st.beta_columns(3)
+                                        gam_col1, gam_col2, gam_col3 = st.columns(3)
                                     if gam_lam_search == "Yes":
-                                        gam_col1, gam_col2= st.beta_columns(2)
+                                        gam_col1, gam_col2= st.columns(2)
                                     gam_nos_values = []
                                     gam_so_values = []
                                     gam_lam_values = []
@@ -1227,8 +1227,8 @@ def app():
                                 rf_finalPara["sample rate"] = [0.99]
                                 final_hyPara_values["rf"] = rf_finalPara
                                 if st.checkbox("Adjust settings for Random Forest "):  
-                                    col1, col2 = st.beta_columns(2)
-                                    col3, col4 = st.beta_columns(2)
+                                    col1, col2 = st.columns(2)
+                                    col3, col4 = st.columns(2)
                                     with col1:
                                         rf_finalPara["number of trees"] = st.number_input("Number of trees", value=100, step=1, min_value=1) 
                                     with col3:
@@ -1257,8 +1257,8 @@ def app():
                                 brt_finalPara["sample rate"] = [1]
                                 final_hyPara_values["brt"] = brt_finalPara
                                 if st.checkbox("Adjust settings for Boosted Regression Trees "):
-                                    col1, col2 = st.beta_columns(2)
-                                    col3, col4 = st.beta_columns(2)
+                                    col1, col2 = st.columns(2)
+                                    col3, col4 = st.columns(2)
                                     with col1:
                                         brt_finalPara["number of trees"] = st.number_input("Number of trees ", value=100, step=1, min_value=1) 
                                     with col2:
@@ -1281,9 +1281,9 @@ def app():
                                 ann_finalPara["L² regularization"] = [0.0001]
                                 final_hyPara_values["ann"] = ann_finalPara
                                 if st.checkbox("Adjust settings for Artificial Neural Networks "): 
-                                    col1, col2 = st.beta_columns(2)
-                                    col3, col4 = st.beta_columns(2)
-                                    col5, col6 = st.beta_columns(2)
+                                    col1, col2 = st.columns(2)
+                                    col3, col4 = st.columns(2)
+                                    col5, col6 = st.columns(2)
                                     with col1:
                                         ann_finalPara["weight optimization solver"] = st.selectbox("Weight optimization solver ", ["adam"])
                                     with col2:
@@ -1333,7 +1333,7 @@ def app():
                                         
                                         # Further general settings
                                         hypTune_method = st.selectbox("Hyperparameter-search method", ["random grid-search", "grid-search", "Bayes optimization", "sequential model-based optimization"])
-                                        col1, col2 = st.beta_columns(2)
+                                        col1, col2 = st.columns(2)
                                         with col1:
                                             hypTune_nCV = st.slider("Select number for n-fold cross-validation", 2, 10, 5)
 
@@ -1353,8 +1353,8 @@ def app():
                                             rf_tunePara["sample rate"] = [0.8, 0.99]
                                             hyPara_values["rf"] = rf_tunePara
                                             if st.checkbox("Adjust tuning settings for Random Forest"):
-                                                col1, col2 = st.beta_columns(2)
-                                                col3, col4 = st.beta_columns(2)
+                                                col1, col2 = st.columns(2)
+                                                col3, col4 = st.columns(2)
                                                 with col1:
                                                     rf_tunePara["number of trees"] = st.slider("Range for number of trees ", 50, 1000, [50, 500])
                                                 with col3:
@@ -1381,8 +1381,8 @@ def app():
                                             brt_tunePara["sample rate"] = [0.8, 1.0]
                                             hyPara_values["brt"] = brt_tunePara
                                             if st.checkbox("Adjust tuning settings for Boosted Regression Trees"):
-                                                col1, col2 = st.beta_columns(2)
-                                                col3, col4 = st.beta_columns(2)
+                                                col1, col2 = st.columns(2)
+                                                col3, col4 = st.columns(2)
                                                 with col1:
                                                     brt_tunePara["number of trees"] = st.slider("Range for number of trees", 50, 1000, [50, 500])
                                                 with col2:
@@ -1405,9 +1405,9 @@ def app():
                                             ann_tunePara["L² regularization"] = [0.00001, 0.0002]
                                             hyPara_values["ann"] = ann_tunePara
                                             if st.checkbox("Adjust tuning settings for Artificial Neural Networks"):
-                                                col1, col2 = st.beta_columns(2)
-                                                col3, col4 = st.beta_columns(2)
-                                                col5, col6 = st.beta_columns(2)
+                                                col1, col2 = st.columns(2)
+                                                col3, col4 = st.columns(2)
+                                                col5, col6 = st.columns(2)
                                                 with col1:
                                                     weight_opt_list = st.selectbox("Weight optimization solver  ", ["adam"])
                                                     if len(weight_opt_list) == 0:
@@ -1455,7 +1455,7 @@ def app():
                                 do_modval= st.selectbox("Use model validation", ["No", "Yes"])
 
                                 if do_modval == "Yes":
-                                    col1, col2 = st.beta_columns(2)
+                                    col1, col2 = st.columns(2)
                                     # Select training/ test ratio
                                     with col1: 
                                         train_frac = st.slider("Select training data size", 0.5, 0.95, 0.8)
@@ -1956,7 +1956,7 @@ def app():
             #--------------------------------------------------------------------------------------
             # FULL MODEL OUTPUT
 
-            full_output = st.beta_expander("Full model output", expanded = False)
+            full_output = st.expander("Full model output", expanded = False)
             with full_output:
                 
                 if model_full_results is not None:
@@ -2020,7 +2020,7 @@ def app():
                             st.markdown("**Multiple Linear Regression**")
                         
                             # Regression information
-                            fm_mlr_reg_col1, fm_mlr_reg_col2 = st.beta_columns(2)
+                            fm_mlr_reg_col1, fm_mlr_reg_col2 = st.columns(2)
                             with fm_mlr_reg_col1:
                                 st.write("Regression information:")
                                 st.table(model_full_results["MLR information"].style.set_precision(user_precision))
@@ -2051,7 +2051,7 @@ def app():
                                     st.info(str(fc.learning_hints("mod_md_MLR_hetTest")))
                                 st.write("")
                             # Variable importance (via permutation)
-                            fm_mlr_reg2_col1, fm_mlr_reg2_col2 = st.beta_columns(2)
+                            fm_mlr_reg2_col1, fm_mlr_reg2_col2 = st.columns(2)
                             with fm_mlr_reg2_col1: 
                                 st.write("Variable importance (via permutation):")
                                 mlr_varImp_table = model_full_results["MLR variable importance"]
@@ -2073,7 +2073,7 @@ def app():
                                 st.info(str(fc.learning_hints("mod_md_MLR_varImp")))
                             st.write("")                        
                             # Graphical output
-                            fm_mlr_figs_col1, fm_mlr_figs_col2 = st.beta_columns(2)
+                            fm_mlr_figs_col1, fm_mlr_figs_col2 = st.columns(2)
                             with fm_mlr_figs_col1:
                                 st.write("Observed vs Fitted:")
                                 observed_fitted_data = pd.DataFrame()
@@ -2103,7 +2103,7 @@ def app():
                             if sett_hints:
                                 st.info(str(fc.learning_hints("mod_md_MLR_obsResVsFit")))
                             st.write("")
-                            fm_mlr_figs1_col1, fm_mlr_figs1_col2 = st.beta_columns(2)
+                            fm_mlr_figs1_col1, fm_mlr_figs1_col2 = st.columns(2)
                             with fm_mlr_figs1_col1:
                                 st.write("Normal QQ-plot:")
                                 residuals = model_full_results["residuals"]["Multiple Linear Regression"]
@@ -2142,7 +2142,7 @@ def app():
                                 if sett_hints:
                                     st.info(str(fc.learning_hints("mod_md_MLR_scaleLoc")))
                             st.write("")
-                            fm_mlr_figs2_col1, fm_mlr_figs2_col2 = st.beta_columns(2)
+                            fm_mlr_figs2_col1, fm_mlr_figs2_col2 = st.columns(2)
                             with fm_mlr_figs2_col1:
                                 st.write("Residuals vs Leverage:")
                                 residuals_leverage_data = pd.DataFrame()
@@ -2195,7 +2195,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Generalized Additive Models"):
                             st.markdown("**Generalized Additive Models**")
 
-                            fm_gam_reg_col1, fm_gam_reg_col2 = st.beta_columns(2)
+                            fm_gam_reg_col1, fm_gam_reg_col2 = st.columns(2)
                             # Regression information
                             with fm_gam_reg_col1:
                                 st.write("Regression information:")
@@ -2214,7 +2214,7 @@ def app():
                                 st.info(str(fc.learning_hints("mod_md_GAM_featSig")))
                             st.write("")
                             # Variable importance (via permutation)
-                            fm_gam_figs1_col1, fm_gam_figs1_col2 = st.beta_columns(2)
+                            fm_gam_figs1_col1, fm_gam_figs1_col2 = st.columns(2)
                             with fm_gam_figs1_col1:
                                 st.write("Variable importance (via permutation):")
                                 gam_varImp_table = model_full_results["GAM variable importance"]
@@ -2237,7 +2237,7 @@ def app():
                             st.write("") 
                             # Partial dependence plots
                             st.write("Partial dependence plots:")    
-                            fm_gam_figs3_col1, fm_gam_figs3_col2 = st.beta_columns(2)
+                            fm_gam_figs3_col1, fm_gam_figs3_col2 = st.columns(2)
                             for pd_var in expl_var:
                                 pd_data_gam = pd.DataFrame(columns = [pd_var])
                                 pd_data_gam[pd_var] = model_full_results["GAM partial dependence"][pd_var]["x_values"]
@@ -2283,7 +2283,7 @@ def app():
                                 st.info(str(fc.learning_hints("mod_md_GAM_partDep")))
                             st.write("")         
                             # Further graphical output
-                            fm_gam_figs4_col1, fm_gam_figs4_col2 = st.beta_columns(2)
+                            fm_gam_figs4_col1, fm_gam_figs4_col2 = st.columns(2)
                             with fm_gam_figs4_col1:
                                 st.write("Observed vs Fitted:")
                                 observed_fitted_data = pd.DataFrame()
@@ -2335,7 +2335,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Random Forest"):
                             st.markdown("**Random Forest**")
 
-                            fm_rf_reg_col1, fm_rf_reg_col2 = st.beta_columns(2)
+                            fm_rf_reg_col1, fm_rf_reg_col2 = st.columns(2)
                             # Regression information
                             with fm_rf_reg_col1:
                                 st.write("Regression information:")
@@ -2353,7 +2353,7 @@ def app():
                                 st.info(str(fc.learning_hints("mod_md_RF_regStat")))
                             st.write("")
                             # Variable importance (via permutation)
-                            fm_rf_figs1_col1, fm_rf_figs1_col2 = st.beta_columns(2)
+                            fm_rf_figs1_col1, fm_rf_figs1_col2 = st.columns(2)
                             with fm_rf_figs1_col1:
                                 st.write("Variable importance (via permutation):")
                                 rf_varImp_table = model_full_results["RF variable importance"]
@@ -2372,7 +2372,7 @@ def app():
                                 )
                                 st.altair_chart(rf_varImp, use_container_width = True) 
                             st.write("") 
-                            fm_rf_figs2_col1, fm_rf_figs2_col2 = st.beta_columns(2)
+                            fm_rf_figs2_col1, fm_rf_figs2_col2 = st.columns(2)
                             # Feature importance
                             with fm_rf_figs2_col1:
                                 st.write("Feature importance (impurity-based):")
@@ -2396,7 +2396,7 @@ def app():
                             st.write("") 
                             # Partial dependence plots
                             st.write("Partial dependence plots:")    
-                            fm_rf_figs3_col1, fm_rf_figs3_col2 = st.beta_columns(2)
+                            fm_rf_figs3_col1, fm_rf_figs3_col2 = st.columns(2)
                             for pd_var in expl_var:
                                 pd_data_rf = pd.DataFrame(columns = [pd_var])
                                 pd_data_rf[pd_var] = model_full_results["RF partial dependence"][pd_var][1][0]
@@ -2424,7 +2424,7 @@ def app():
                                 st.info(str(fc.learning_hints("mod_md_RF_partDep")))
                             st.write("")         
                             # Further graphical output
-                            fm_rf_figs4_col1, fm_rf_figs4_col2 = st.beta_columns(2)
+                            fm_rf_figs4_col1, fm_rf_figs4_col2 = st.columns(2)
                             with fm_rf_figs4_col1:
                                 st.write("Observed vs Fitted:")
                                 observed_fitted_data = pd.DataFrame()
@@ -2476,7 +2476,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Boosted Regression Trees"):
                             st.markdown("**Boosted Regression Trees**")
 
-                            fm_brt_reg_col1, fm_brt_reg_col2 = st.beta_columns(2)
+                            fm_brt_reg_col1, fm_brt_reg_col2 = st.columns(2)
                             # Regression information
                             with fm_brt_reg_col1:
                                 st.write("Regression information:")
@@ -2506,7 +2506,7 @@ def app():
                             st.altair_chart(train_score_plot, use_container_width = True)
                             st.write("")
                             # Variable importance (via permutation)
-                            fm_brt_figs1_col1, fm_brt_figs1_col2 = st.beta_columns(2)
+                            fm_brt_figs1_col1, fm_brt_figs1_col2 = st.columns(2)
                             with fm_brt_figs1_col1:
                                 st.write("Variable importance (via permutation):")
                                 brt_varImp_table = model_full_results["BRT variable importance"]
@@ -2525,7 +2525,7 @@ def app():
                                 )
                                 st.altair_chart(brt_varImp, use_container_width = True) 
                             st.write("") 
-                            fm_brt_figs2_col1, fm_brt_figs2_col2 = st.beta_columns(2)
+                            fm_brt_figs2_col1, fm_brt_figs2_col2 = st.columns(2)
                             # Feature importance
                             with fm_brt_figs2_col1:
                                 st.write("Feature importance (impurity-based):")
@@ -2549,7 +2549,7 @@ def app():
                             st.write("") 
                             # Partial dependence plots
                             st.write("Partial dependence plots:")    
-                            fm_brt_figs3_col1, fm_brt_figs3_col2 = st.beta_columns(2)
+                            fm_brt_figs3_col1, fm_brt_figs3_col2 = st.columns(2)
                             for pd_var in expl_var:
                                 pd_data_brt = pd.DataFrame(columns = [pd_var])
                                 pd_data_brt[pd_var] = model_full_results["BRT partial dependence"][pd_var][1][0]
@@ -2577,7 +2577,7 @@ def app():
                                 st.info(str(fc.learning_hints("mod_md_BRT_partDep")))
                             st.write("")         
                             # Further graphical output
-                            fm_brt_figs4_col1, fm_brt_figs4_col2 = st.beta_columns(2)
+                            fm_brt_figs4_col1, fm_brt_figs4_col2 = st.columns(2)
                             with fm_brt_figs4_col1:
                                 st.write("Observed vs Fitted:")
                                 observed_fitted_data = pd.DataFrame()
@@ -2629,7 +2629,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Artificial Neural Networks"):
                             st.markdown("**Artificial Neural Networks**")
 
-                            fm_ann_reg_col1, fm_ann_reg_col2 = st.beta_columns(2)
+                            fm_ann_reg_col1, fm_ann_reg_col2 = st.columns(2)
                             # Regression information
                             with fm_ann_reg_col1:
                                 st.write("Regression information:")
@@ -2661,7 +2661,7 @@ def app():
                                 )     
                                 st.altair_chart(loss_curve_plot, use_container_width = True)    
                             st.write("") 
-                            fm_ann_figs1_col1, fm_ann_figs1_col2 = st.beta_columns(2)
+                            fm_ann_figs1_col1, fm_ann_figs1_col2 = st.columns(2)
                             # Variable importance (via permutation)
                             with fm_ann_figs1_col1:
                                 st.write("Variable importance (via permutation):")
@@ -2685,7 +2685,7 @@ def app():
                             st.write("") 
                             # Partial dependence plots
                             st.write("Partial dependence plots:")    
-                            fm_ann_figs2_col1, fm_ann_figs2_col2 = st.beta_columns(2)
+                            fm_ann_figs2_col1, fm_ann_figs2_col2 = st.columns(2)
                             for pd_var in expl_var:
                                 pd_data_ann = pd.DataFrame(columns = [pd_var])
                                 pd_data_ann[pd_var] = (model_full_results["ANN partial dependence"][pd_var][1][0]*(df[pd_var].std()))+df[pd_var].mean()
@@ -2713,7 +2713,7 @@ def app():
                                 st.info(str(fc.learning_hints("mod_md_ANN_partDep")))
                             st.write("") 
                             # Further graphical output
-                            fm_ann_figs3_col1, fm_ann_figs3_col2 = st.beta_columns(2)
+                            fm_ann_figs3_col1, fm_ann_figs3_col2 = st.columns(2)
                             with fm_ann_figs3_col1:
                                 st.write("Observed vs Fitted:")
                                 observed_fitted_data = pd.DataFrame()
@@ -2808,7 +2808,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Multiple Linear Regression"):
                             st.markdown("**Multiple Linear Regression**")
                             # Regression information
-                            fm_mlr_reg_col1, fm_mlr_reg_col2 = st.beta_columns(2)
+                            fm_mlr_reg_col1, fm_mlr_reg_col2 = st.columns(2)
                             with fm_mlr_reg_col1:
                                 st.write("Regression information:")
                                 st.table(model_full_results["MLR information"].style.set_precision(user_precision))
@@ -2839,7 +2839,7 @@ def app():
                                     st.info(str(fc.learning_hints("mod_md_MLR_hetTest")))
                                 st.write("")
                             # Variable importance (via permutation)
-                            fm_mlr_reg2_col1, fm_mlr_reg2_col2 = st.beta_columns(2)
+                            fm_mlr_reg2_col1, fm_mlr_reg2_col2 = st.columns(2)
                             with fm_mlr_reg2_col1: 
                                 st.write("Variable importance (via permutation):")
                                 mlr_varImp_table = model_full_results["MLR variable importance"]
@@ -2861,7 +2861,7 @@ def app():
                                 st.info(str(fc.learning_hints("mod_md_MLR_varImp")))
                             st.write("")                                 
                             # Graphical output
-                            fm_mlr_figs_col1, fm_mlr_figs_col2 = st.beta_columns(2)
+                            fm_mlr_figs_col1, fm_mlr_figs_col2 = st.columns(2)
                             with fm_mlr_figs_col1:
                                 st.write("Observed vs Fitted:")
                                 observed_fitted_data = pd.DataFrame()
@@ -2891,7 +2891,7 @@ def app():
                             if sett_hints:
                                 st.info(str(fc.learning_hints("mod_md_MLR_obsResVsFit")))
                             st.write("")
-                            fm_mlr_figs1_col1, fm_mlr_figs1_col2 = st.beta_columns(2)
+                            fm_mlr_figs1_col1, fm_mlr_figs1_col2 = st.columns(2)
                             with fm_mlr_figs1_col1:
                                 st.write("Normal QQ-plot:")
                                 residuals = model_full_results["residuals"]["Multiple Linear Regression"]
@@ -2930,7 +2930,7 @@ def app():
                                 if sett_hints:
                                     st.info(str(fc.learning_hints("mod_md_MLR_scaleLoc")))
                             st.write("")
-                            fm_mlr_figs2_col1, fm_mlr_figs2_col2 = st.beta_columns(2)
+                            fm_mlr_figs2_col1, fm_mlr_figs2_col2 = st.columns(2)
                             with fm_mlr_figs2_col1:
                                 st.write("Residuals vs Leverage:")
                                 residuals_leverage_data = pd.DataFrame()
@@ -2983,7 +2983,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Logistic Regression"):
                             st.markdown("**Logistic Regression**")
                             # Regression information
-                            fm_lr_reg_col1, fm_lr_reg_col2 = st.beta_columns(2)
+                            fm_lr_reg_col1, fm_lr_reg_col2 = st.columns(2)
                             with fm_lr_reg_col1:
                                 st.write("Regression information:")
                                 st.table(model_full_results["LR information"].style.set_precision(user_precision))
@@ -3001,7 +3001,7 @@ def app():
                                 st.info(str(fc.learning_hints("mod_md_LR_coef")))
                             st.write("")
                             # Variable importance (via permutation)
-                            fm_lr_fig1_col1, fm_lr_fig1_col2 = st.beta_columns(2)
+                            fm_lr_fig1_col1, fm_lr_fig1_col2 = st.columns(2)
                             with fm_lr_fig1_col1: 
                                 st.write("Variable importance (via permutation):")
                                 lr_varImp_table = model_full_results["LR variable importance"]
@@ -3021,7 +3021,7 @@ def app():
                             if sett_hints:
                                 st.info(str(fc.learning_hints("mod_md_LR_varImp"))) 
                             st.write("") 
-                            fm_lr_fig_col1, fm_lr_fig_col2 = st.beta_columns(2)
+                            fm_lr_fig_col1, fm_lr_fig_col2 = st.columns(2)
                             # Observed vs. Probability of Occurrence 
                             with fm_lr_fig_col1:
                                 st.write("Observed vs. Probability of Occurrence:")
@@ -3061,7 +3061,7 @@ def app():
                             st.write("") 
                             # Partial probabilities
                             st.write("Partial probability plots:")    
-                            fm_lr_figs2_col1, fm_lr_figs2_col2 = st.beta_columns(2)
+                            fm_lr_figs2_col1, fm_lr_figs2_col2 = st.columns(2)
                             for pp_var in expl_var:
                                 pp_data = pd.DataFrame(columns = [pp_var])
                                 pp_data[pp_var] = model_full_results["LR partial probabilities"][pp_var][pp_var]
@@ -3108,7 +3108,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Generalized Additive Models"):
                             st.markdown("**Generalized Additive Models**")
 
-                            fm_gam_reg_col1, fm_gam_reg_col2 = st.beta_columns(2)
+                            fm_gam_reg_col1, fm_gam_reg_col2 = st.columns(2)
                             # Regression information
                             with fm_gam_reg_col1:
                                 st.write("Regression information:")
@@ -3127,7 +3127,7 @@ def app():
                                 st.info(str(fc.learning_hints("mod_md_GAM_featSig_bin")))
                             st.write("")
                             # Variable importance (via permutation)
-                            fm_gam_figs1_col1, fm_gam_figs1_col2 = st.beta_columns(2)
+                            fm_gam_figs1_col1, fm_gam_figs1_col2 = st.columns(2)
                             with fm_gam_figs1_col1:
                                 st.write("Variable importance (via permutation):")
                                 gam_varImp_table = model_full_results["GAM variable importance"]
@@ -3149,7 +3149,7 @@ def app():
                                 st.info(str(fc.learning_hints("mod_md_GAM_varImp_bin"))) 
                             st.write("")
                             # Observed vs. Probability of Occurrence
-                            fm_gam_figs5_col1, fm_gam_figs5_col2 = st.beta_columns(2) 
+                            fm_gam_figs5_col1, fm_gam_figs5_col2 = st.columns(2) 
                             with fm_gam_figs5_col1:
                                 st.write("Observed vs. Probability of Occurrence:")
                                 prob_data = pd.DataFrame(model_full_results["GAM fitted"])
@@ -3188,7 +3188,7 @@ def app():
                             st.write("")  
                             # Partial dependence plots
                             st.write("Partial dependence plots:")    
-                            fm_gam_figs3_col1, fm_gam_figs3_col2 = st.beta_columns(2)
+                            fm_gam_figs3_col1, fm_gam_figs3_col2 = st.columns(2)
                             for pd_var in expl_var:
                                 pd_data_gam = pd.DataFrame(columns = [pd_var])
                                 pd_data_gam[pd_var] = model_full_results["GAM partial dependence"][pd_var]["x_values"]
@@ -3256,7 +3256,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Random Forest"):
                             st.markdown("**Random Forest**")
                             
-                            fm_rf_reg_col1, fm_rf_reg_col2 = st.beta_columns(2)
+                            fm_rf_reg_col1, fm_rf_reg_col2 = st.columns(2)
                             # Regression information
                             with fm_rf_reg_col1:
                                 st.write("Regression information:")
@@ -3273,7 +3273,7 @@ def app():
                             if sett_hints:
                                 st.info(str(fc.learning_hints("mod_md_RF_regStat_bin"))) 
                             st.write("")
-                            fm_rf_figs1_col1, fm_rf_figs1_col2 = st.beta_columns(2)
+                            fm_rf_figs1_col1, fm_rf_figs1_col2 = st.columns(2)
                             # Variable importance (via permutation)
                             with fm_rf_figs1_col1:
                                 st.write("Variable importance (via permutation):")
@@ -3293,7 +3293,7 @@ def app():
                                 )
                                 st.altair_chart(rf_varImp, use_container_width = True) 
                             st.write("") 
-                            fm_rf_figs2_col1, fm_rf_figs2_col2 = st.beta_columns(2)
+                            fm_rf_figs2_col1, fm_rf_figs2_col2 = st.columns(2)
                             # Feature importance
                             with fm_rf_figs2_col1:
                                 st.write("Feature importance (impurity-based):")
@@ -3314,7 +3314,7 @@ def app():
                             if sett_hints:
                                 st.info(str(fc.learning_hints("mod_md_RF_varImp_bin"))) 
                             st.write("") 
-                            fm_rf_figs5_col1, fm_rf_figs5_col2 = st.beta_columns(2)
+                            fm_rf_figs5_col1, fm_rf_figs5_col2 = st.columns(2)
                             # Observed vs. Probability of Occurrence 
                             with fm_rf_figs5_col1:
                                 st.write("Observed vs. Probability of Occurrence:")
@@ -3354,7 +3354,7 @@ def app():
                             st.write("") 
                             # Partial dependence plots
                             st.write("Partial dependence plots:")    
-                            fm_rf_figs3_col1, fm_rf_figs3_col2 = st.beta_columns(2)
+                            fm_rf_figs3_col1, fm_rf_figs3_col2 = st.columns(2)
                             for pd_var in expl_var:
                                 pd_data_rf = pd.DataFrame(columns = [pd_var])
                                 pd_data_rf[pd_var] = model_full_results["RF partial dependence"][pd_var][1][0]
@@ -3403,7 +3403,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Boosted Regression Trees"):
                             st.markdown("**Boosted Regression Trees**")
                             
-                            fm_brt_reg_col1, fm_brt_reg_col2 = st.beta_columns(2)
+                            fm_brt_reg_col1, fm_brt_reg_col2 = st.columns(2)
                             # Regression information
                             with fm_brt_reg_col1:
                                 st.write("Regression information:")
@@ -3433,7 +3433,7 @@ def app():
                             st.altair_chart(train_score_plot, use_container_width = True)
                             st.write("") 
 
-                            fm_brt_figs1_col1, fm_brt_figs1_col2 = st.beta_columns(2)
+                            fm_brt_figs1_col1, fm_brt_figs1_col2 = st.columns(2)
                             # Variable importance (via permutation)
                             with fm_brt_figs1_col1:
                                 st.write("Variable importance (via permutation):")
@@ -3453,7 +3453,7 @@ def app():
                                 )
                                 st.altair_chart(brt_varImp, use_container_width = True) 
                             st.write("") 
-                            fm_brt_figs2_col1, fm_brt_figs2_col2 = st.beta_columns(2)
+                            fm_brt_figs2_col1, fm_brt_figs2_col2 = st.columns(2)
                             # Feature importance
                             with fm_brt_figs2_col1:
                                 st.write("Feature importance (impurity-based):")
@@ -3474,7 +3474,7 @@ def app():
                             if sett_hints:
                                 st.info(str(fc.learning_hints("mod_md_BRT_varImp_bin"))) 
                             st.write("") 
-                            fm_brt_figs5_col1, fm_brt_figs5_col2 = st.beta_columns(2)
+                            fm_brt_figs5_col1, fm_brt_figs5_col2 = st.columns(2)
                             # Observed vs. Probability of Occurrence 
                             with fm_brt_figs5_col1:
                                 st.write("Observed vs. Probability of Occurrence:")
@@ -3515,7 +3515,7 @@ def app():
 
                             # Partial dependence plots
                             st.write("Partial dependence plots:")    
-                            fm_brt_figs3_col1, fm_brt_figs3_col2 = st.beta_columns(2)
+                            fm_brt_figs3_col1, fm_brt_figs3_col2 = st.columns(2)
                             for pd_var in expl_var:
                                 pd_data_brt = pd.DataFrame(columns = [pd_var])
                                 pd_data_brt[pd_var] = model_full_results["BRT partial dependence"][pd_var][1][0]
@@ -3564,7 +3564,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Artificial Neural Networks"):
                             st.markdown("**Artificial Neural Networks**")
 
-                            fm_ann_reg_col1, fm_ann_reg_col2 = st.beta_columns(2)
+                            fm_ann_reg_col1, fm_ann_reg_col2 = st.columns(2)
                             # Regression information
                             with fm_ann_reg_col1:
                                 st.write("Regression information:")
@@ -3596,7 +3596,7 @@ def app():
                                 )     
                                 st.altair_chart(loss_curve_plot, use_container_width = True)    
                             st.write("") 
-                            fm_ann_figs1_col1, fm_ann_figs1_col2 = st.beta_columns(2)
+                            fm_ann_figs1_col1, fm_ann_figs1_col2 = st.columns(2)
                             # Variable importance (via permutation)
                             with fm_ann_figs1_col1:
                                 st.write("Variable importance (via permutation):")
@@ -3617,7 +3617,7 @@ def app():
                             if sett_hints:
                                 st.info(str(fc.learning_hints("mod_md_ANN_varImp_bin")))
                             st.write("") 
-                            fm_ann_figs5_col1, fm_ann_figs5_col2 = st.beta_columns(2)
+                            fm_ann_figs5_col1, fm_ann_figs5_col2 = st.columns(2)
                             # Observed vs. Probability of Occurrence 
                             with fm_ann_figs5_col1:
                                 st.write("Observed vs. Probability of Occurrence:")
@@ -3658,7 +3658,7 @@ def app():
 
                             # Partial dependence plots
                             st.write("Partial dependence plots:")    
-                            fm_ann_figs2_col1, fm_ann_figs2_col2 = st.beta_columns(2)
+                            fm_ann_figs2_col1, fm_ann_figs2_col2 = st.columns(2)
                             for pd_var in expl_var:
                                 pd_data_ann = pd.DataFrame(columns = [pd_var])
                                 pd_data_ann[pd_var] = (model_full_results["ANN partial dependence"][pd_var][1][0]*(df[pd_var].std()))+df[pd_var].mean()
@@ -3745,7 +3745,7 @@ def app():
             #--------------------------------------------------------------------------------------
             # FULL MODEL PREDICTIONS
 
-            prediction_output = st.beta_expander("Full model predictions", expanded = False)
+            prediction_output = st.expander("Full model predictions", expanded = False)
             with prediction_output:
                 
                 if model_full_results is not None:
@@ -3759,7 +3759,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Multiple Linear Regression"):
                             st.markdown("**Multiple Linear Regression**")
 
-                            pred_col1, pred_col2 = st.beta_columns(2)
+                            pred_col1, pred_col2 = st.columns(2)
                             with pred_col1:
                                 st.write("Predictions for original data:")
                                 MLR_pred_orig = pd.DataFrame(columns = [response_var])
@@ -3776,7 +3776,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Generalized Additive Models"):
                             st.markdown("**Generalized Additive Models**")
 
-                            pred_col1, pred_col2 = st.beta_columns(2)
+                            pred_col1, pred_col2 = st.columns(2)
                             with pred_col1:
                                 st.write("Predictions for original data:")
                                 GAM_pred_orig = pd.DataFrame(columns = [response_var])
@@ -3793,7 +3793,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Random Forest"):
                             st.markdown("**Random Forest**")
 
-                            pred_col1, pred_col2 = st.beta_columns(2)
+                            pred_col1, pred_col2 = st.columns(2)
                             with pred_col1:
                                 st.write("Predictions for original data:")
                                 RF_pred_orig = pd.DataFrame(columns = [response_var])
@@ -3810,7 +3810,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Boosted Regression Trees"):
                             st.markdown("**Boosted Regression Trees**")
 
-                            pred_col1, pred_col2 = st.beta_columns(2)
+                            pred_col1, pred_col2 = st.columns(2)
                             with pred_col1:
                                 st.write("Predictions for original data:")
                                 BRT_pred_orig = pd.DataFrame(columns = [response_var])
@@ -3827,7 +3827,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Artificial Neural Networks"):
                             st.markdown("**Artificial Neural Networks**")
 
-                            pred_col1, pred_col2 = st.beta_columns(2)
+                            pred_col1, pred_col2 = st.columns(2)
                             with pred_col1:
                                 st.write("Predictions for original data:")
                                 ANN_pred_orig = pd.DataFrame(columns = [response_var])
@@ -3849,7 +3849,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Multiple Linear Regression"):
                             st.markdown("**Multiple Linear Regression**")
 
-                            pred_col1, pred_col2 = st.beta_columns(2)
+                            pred_col1, pred_col2 = st.columns(2)
                             with pred_col1:
                                 st.write("Predictions for original data:")
                                 MLR_pred_orig = pd.DataFrame(columns = [response_var])
@@ -3867,7 +3867,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Logistic Regression"):
                             st.markdown("**Logistic Regression**")
 
-                            pred_col1, pred_col2 = st.beta_columns(2)
+                            pred_col1, pred_col2 = st.columns(2)
                             with pred_col1:
                                 st.write("Predictions for original data:")
                                 LR_pred_orig = pd.DataFrame(columns = [response_var])
@@ -3887,7 +3887,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Generalized Additive Models"):
                             st.markdown("**Generalized Additive Models**")
 
-                            pred_col1, pred_col2 = st.beta_columns(2)
+                            pred_col1, pred_col2 = st.columns(2)
                             with pred_col1:
                                 st.write("Predictions for original data:")
                                 GAM_pred_orig = pd.DataFrame(columns = [response_var])
@@ -3907,7 +3907,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Random Forest"):
                             st.markdown("**Random Forest**")
 
-                            pred_col1, pred_col2 = st.beta_columns(2)
+                            pred_col1, pred_col2 = st.columns(2)
                             with pred_col1:
                                 st.write("Predictions for original data:")
                                 RF_pred_orig = pd.DataFrame(columns = [response_var])
@@ -3927,7 +3927,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Boosted Regression Trees"):
                             st.markdown("**Boosted Regression Trees**")
 
-                            pred_col1, pred_col2 = st.beta_columns(2)
+                            pred_col1, pred_col2 = st.columns(2)
                             with pred_col1:
                                 st.write("Predictions for original data:")
                                 BRT_pred_orig = pd.DataFrame(columns = [response_var])
@@ -3947,7 +3947,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Artificial Neural Networks"):
                             st.markdown("**Artificial Neural Networks**")
 
-                            pred_col1, pred_col2 = st.beta_columns(2)
+                            pred_col1, pred_col2 = st.columns(2)
                             with pred_col1:
                                 st.write("Predictions for original data:")
                                 ANN_pred_orig = pd.DataFrame(columns = [response_var])
@@ -4007,7 +4007,7 @@ def app():
             # VALIDATION OUTPUT
             
             if do_modval == "Yes":
-                val_output = st.beta_expander("Validation output", expanded = False)
+                val_output = st.expander("Validation output", expanded = False)
                 with val_output:
                     if model_val_results is not None:
                         
@@ -4028,7 +4028,7 @@ def app():
                                 st.info(str(fc.learning_hints("mod_md_val_sds")))
                             st.write("")
                             st.write("")
-                            val_col1, val_col2 = st.beta_columns(2)
+                            val_col1, val_col2 = st.columns(2)
                             with val_col1:
                                 # Residuals boxplot
                                 if model_val_results["residuals"] is not None:
@@ -4136,7 +4136,7 @@ def app():
                                 st.write("")
                                 st.write("")
 
-                            val_col1, val_col2 = st.beta_columns(2)
+                            val_col1, val_col2 = st.columns(2)
                             with val_col1: 
                                 # AUC ROC boxplot
                                 if model_val_results["AUC ROC"].empty:
@@ -4239,7 +4239,7 @@ def app():
                     hype_title = "Hyperparameter-tuning output"
                 if do_hypTune != "Yes":
                     hype_title = "Hyperparameter output"
-                hype_output = st.beta_expander(hype_title, expanded = False)
+                hype_output = st.expander(hype_title, expanded = False)
                 with hype_output:
                     
                     # Random Forest
@@ -4375,12 +4375,12 @@ def app():
         st.write("")
         st.write("")
         
-        data_machinelearning_container2 = st.beta_container()
+        data_machinelearning_container2 = st.container()
         with data_machinelearning_container2:
             st.header("**Multi-class classification**")
             st.markdown("Go for creating predictive models of your data using machine learning techniques!  STATY will take care of the modelling for you, so you can put your focus on results interpretation and communication! ")
 
-            ml_settings = st.beta_expander("Specify models ", expanded = False)
+            ml_settings = st.expander("Specify models ", expanded = False)
             with ml_settings:
                 
                 # Initial status for running models (same as for regression, bc same functions are used)
@@ -4420,7 +4420,7 @@ def app():
                     # Response variable
                     response_var_type = "multi-class"
                     response_var_options = df.columns
-                    response_var = st.selectbox("Select response variable", response_var_options, key = session_state.id)
+                    response_var = st.selectbox("Select response variable", response_var_options, key = st.session_state['key'])
                     
                     # Check how many classes the response variable has (max: 10 classes)
                     if len(pd.unique(df[response_var])) > 10:
@@ -4453,7 +4453,7 @@ def app():
                         # Select explanatory variables
                         expl_var_options = df.columns
                         expl_var_options = expl_var_options[expl_var_options.isin(df.drop(response_var, axis = 1).columns)]
-                        expl_var = st.multiselect("Select explanatory variables", expl_var_options, key = session_state.id)
+                        expl_var = st.multiselect("Select explanatory variables", expl_var_options, key = st.session_state['key'])
                         var_list = list([response_var]) + list(expl_var)
 
                         # Check if explanatory variables are numeric
@@ -4495,7 +4495,7 @@ def app():
                             #     LR_finalPara["intercept"] = LR_intercept
                             #     LR_finalPara["covType"] = LR_cov_type
                             #     if st.checkbox("Adjust settings for Logistic Regression"):
-                            #         col1, col2 = st.beta_columns(2)
+                            #         col1, col2 = st.columns(2)
                             #         with col1:
                             #             LR_intercept = st.selectbox("Include intercept   ", ["Yes", "No"])
                             #         with col2:
@@ -4516,8 +4516,8 @@ def app():
                                 rf_finalPara["sample rate"] = [0.99]
                                 final_hyPara_values["rf"] = rf_finalPara
                                 if st.checkbox("Adjust settings for Random Forest "):  
-                                    col1, col2 = st.beta_columns(2)
-                                    col3, col4 = st.beta_columns(2)
+                                    col1, col2 = st.columns(2)
+                                    col3, col4 = st.columns(2)
                                     with col1:
                                         rf_finalPara["number of trees"] = st.number_input("Number of trees", value=100, step=1, min_value=1) 
                                     with col3:
@@ -4548,9 +4548,9 @@ def app():
                                 ann_finalPara["L² regularization"] = [0.0001]
                                 final_hyPara_values["ann"] = ann_finalPara
                                 if st.checkbox("Adjust settings for Artificial Neural Networks "): 
-                                    col1, col2 = st.beta_columns(2)
-                                    col3, col4 = st.beta_columns(2)
-                                    col5, col6 = st.beta_columns(2)
+                                    col1, col2 = st.columns(2)
+                                    col3, col4 = st.columns(2)
+                                    col5, col6 = st.columns(2)
                                     with col1:
                                         ann_finalPara["weight optimization solver"] = st.selectbox("Weight optimization solver ", ["adam"])
                                     with col2:
@@ -4600,7 +4600,7 @@ def app():
                                         
                                         # Further general settings
                                         hypTune_method = st.selectbox("Hyperparameter-search method", ["random grid-search", "grid-search"])
-                                        col1, col2 = st.beta_columns(2)
+                                        col1, col2 = st.columns(2)
                                         with col1:
                                             hypTune_nCV = st.slider("Select number for n-fold cross-validation", 2, 10, 5)
 
@@ -4620,8 +4620,8 @@ def app():
                                             rf_tunePara["sample rate"] = [0.8, 0.99]
                                             hyPara_values["rf"] = rf_tunePara
                                             if st.checkbox("Adjust tuning settings for Random Forest"):
-                                                col1, col2 = st.beta_columns(2)
-                                                col3, col4 = st.beta_columns(2)
+                                                col1, col2 = st.columns(2)
+                                                col3, col4 = st.columns(2)
                                                 with col1:
                                                     rf_tunePara["number of trees"] = st.slider("Range for number of trees ", 50, 1000, [50, 500])
                                                 with col3:
@@ -4651,9 +4651,9 @@ def app():
                                             ann_tunePara["L² regularization"] = [0.00001, 0.0002]
                                             hyPara_values["ann"] = ann_tunePara
                                             if st.checkbox("Adjust tuning settings for Artificial Neural Networks"):
-                                                col1, col2 = st.beta_columns(2)
-                                                col3, col4 = st.beta_columns(2)
-                                                col5, col6 = st.beta_columns(2)
+                                                col1, col2 = st.columns(2)
+                                                col3, col4 = st.columns(2)
+                                                col5, col6 = st.columns(2)
                                                 with col1:
                                                     weight_opt_list = st.selectbox("Weight optimization solver  ", ["adam"])
                                                     if len(weight_opt_list) == 0:
@@ -4701,7 +4701,7 @@ def app():
                                 do_modval= st.selectbox("Use model validation", ["No", "Yes"])
 
                                 if do_modval == "Yes":
-                                    col1, col2 = st.beta_columns(2)
+                                    col1, col2 = st.columns(2)
                                     # Select training/ test ratio
                                     with col1: 
                                         train_frac = st.slider("Select training data size", 0.5, 0.95, 0.8)
@@ -5151,7 +5151,7 @@ def app():
             #--------------------------------------------------------------------------------------
             # FULL MODEL OUTPUT
 
-            full_output = st.beta_expander("Full model output", expanded = False)
+            full_output = st.expander("Full model output", expanded = False)
             with full_output:
                 
                 if model_full_results is not None:
@@ -5211,7 +5211,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Random Forest"):
                             st.markdown("**Random Forest**")
                             
-                            fm_rf_reg_col1, fm_rf_reg_col2 = st.beta_columns(2)
+                            fm_rf_reg_col1, fm_rf_reg_col2 = st.columns(2)
                             # Regression information
                             with fm_rf_reg_col1:
                                 st.write("Regression information:")
@@ -5226,7 +5226,7 @@ def app():
                             if sett_hints:
                                 st.info(str(fc.learning_hints("mod_md_RF_regStat_mult"))) 
                             st.write("")
-                            fm_rf_figs1_col1, fm_rf_figs1_col2 = st.beta_columns(2)
+                            fm_rf_figs1_col1, fm_rf_figs1_col2 = st.columns(2)
                             # Variable importance (via permutation)
                             with fm_rf_figs1_col1:
                                 st.write("Variable importance (via permutation):")
@@ -5246,7 +5246,7 @@ def app():
                                 )
                                 st.altair_chart(rf_varImp, use_container_width = True) 
                             st.write("") 
-                            fm_rf_figs2_col1, fm_rf_figs2_col2 = st.beta_columns(2)
+                            fm_rf_figs2_col1, fm_rf_figs2_col2 = st.columns(2)
                             # Feature importance
                             with fm_rf_figs2_col1:
                                 st.write("Feature importance (impurity-based):")
@@ -5269,7 +5269,7 @@ def app():
                             st.write("") 
                             # Partial dependence plots
                             # st.write("Partial dependence plots:")    
-                            # fm_rf_figs3_col1, fm_rf_figs3_col2 = st.beta_columns(2)
+                            # fm_rf_figs3_col1, fm_rf_figs3_col2 = st.columns(2)
                             # for pd_var in expl_var:
                             #     pd_data_rf = pd.DataFrame(columns = [pd_var])
                             #     pd_data_rf[pd_var] = model_full_results["RF partial dependence"][pd_var][1][0]
@@ -5332,7 +5332,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Artificial Neural Networks"):
                             st.markdown("**Artificial Neural Networks**")
 
-                            fm_ann_reg_col1, fm_ann_reg_col2 = st.beta_columns(2)
+                            fm_ann_reg_col1, fm_ann_reg_col2 = st.columns(2)
                             # Regression information
                             with fm_ann_reg_col1:
                                 st.write("Regression information:")
@@ -5362,7 +5362,7 @@ def app():
                                 )     
                                 st.altair_chart(loss_curve_plot, use_container_width = True)    
                             st.write("") 
-                            fm_ann_figs1_col1, fm_ann_figs1_col2 = st.beta_columns(2)
+                            fm_ann_figs1_col1, fm_ann_figs1_col2 = st.columns(2)
                             # Variable importance (via permutation)
                             with fm_ann_figs1_col1:
                                 st.write("Variable importance (via permutation):")
@@ -5385,7 +5385,7 @@ def app():
                             st.write("")
                             # Partial dependence plots
                             # st.write("Partial dependence plots:")    
-                            # fm_ann_figs2_col1, fm_ann_figs2_col2 = st.beta_columns(2)
+                            # fm_ann_figs2_col1, fm_ann_figs2_col2 = st.columns(2)
                             # for pd_var in expl_var:
                             #     pd_data_ann = pd.DataFrame(columns = [pd_var])
                             #     pd_data_ann[pd_var] = (model_full_results["ANN partial dependence"][pd_var][1][0]*(df[pd_var].std()))+df[pd_var].mean()
@@ -5473,7 +5473,7 @@ def app():
             #--------------------------------------------------------------------------------------
             # FULL MODEL PREDICTIONS
 
-            prediction_output = st.beta_expander("Full model predictions", expanded = False)
+            prediction_output = st.expander("Full model predictions", expanded = False)
             with prediction_output:
                 
                 if model_full_results is not None:
@@ -5487,7 +5487,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Random Forest"):
                             st.markdown("**Random Forest**")
 
-                            pred_col1, pred_col2 = st.beta_columns(2)
+                            pred_col1, pred_col2 = st.columns(2)
                             with pred_col1:
                                 st.write("Predictions for original data:")
                                 RF_pred_orig = pd.DataFrame(columns = [response_var])
@@ -5507,7 +5507,7 @@ def app():
                         if any(a for a in sb_ML_alg if a == "Artificial Neural Networks"):
                             st.markdown("**Artificial Neural Networks**")
 
-                            pred_col1, pred_col2 = st.beta_columns(2)
+                            pred_col1, pred_col2 = st.columns(2)
                             with pred_col1:
                                 st.write("Predictions for original data:")
                                 ANN_pred_orig = pd.DataFrame(columns = [response_var])
@@ -5551,7 +5551,7 @@ def app():
             # VALIDATION OUTPUT
             
             if do_modval == "Yes":
-                val_output = st.beta_expander("Validation output", expanded = False)
+                val_output = st.expander("Validation output", expanded = False)
                 with val_output:
                     if model_val_results is not None:
                     
@@ -5561,7 +5561,7 @@ def app():
                         if response_var_type == "multi-class":
                             
                             # Metric
-                            col1, col2 = st.beta_columns(2)
+                            col1, col2 = st.columns(2)
                             with col1:
                                 if model_val_results["mean"].empty:
                                     st.write("")
@@ -5581,7 +5581,7 @@ def app():
                                         st.info(str(fc.learning_hints("mod_md_val_sds_mult")))
                                     st.write("")
 
-                            val_col1, val_col2 = st.beta_columns(2)
+                            val_col1, val_col2 = st.columns(2)
                             with val_col1: 
                                 # ACC boxplot
                                 if model_val_results["ACC"].empty:
@@ -5664,7 +5664,7 @@ def app():
                     hype_title = "Hyperparameter-tuning output"
                 if do_hypTune != "Yes":
                     hype_title = "Hyperparameter output"
-                hype_output = st.beta_expander(hype_title, expanded = False)
+                hype_output = st.expander(hype_title, expanded = False)
                 with hype_output:
                     
                     # Random Forest
@@ -5800,12 +5800,12 @@ def app():
         st.write("")
         st.write("")
         
-        data_decomposition_container = st.beta_container()
+        data_decomposition_container = st.container()
         with data_decomposition_container:
             st.header("**Data decomposition**")
             st.markdown("STATY will take care of the decomposition for you, so you can put your focus on results interpretation and communication! ")
 
-            dd_settings = st.beta_expander("Specify method", expanded = False)
+            dd_settings = st.expander("Specify method", expanded = False)
             with dd_settings:
 
                 if df.shape[1] > 0 and df.shape[0] > 0:
@@ -5817,17 +5817,17 @@ def app():
                     # Select variables
                     var_options = list(df.select_dtypes(['number']).columns)
                     if len(var_options)>0:
-                        decomp_var = st.multiselect("Select variables for decomposition", var_options, var_options, key = session_state.id)
+                        decomp_var = st.multiselect("Select variables for decomposition", var_options, var_options, key = st.session_state['key'])
                     else:
                         st.error("ERROR: No numeric variables in dataset!")
                         return
                     
                     # Include response variable in output?
-                    resp_var_dec = st.selectbox("Include response variable in transformed data output", ["No", "Yes"], key = session_state.id)
+                    resp_var_dec = st.selectbox("Include response variable in transformed data output", ["No", "Yes"], key = st.session_state['key'])
                     if resp_var_dec == "Yes":
                         resp_var_options = df.columns
                         resp_var_options = resp_var_options[resp_var_options.isin(df.drop(decomp_var, axis = 1).columns)]
-                        resp_var = st.selectbox("Select response variable for transformed data output", resp_var_options, key = session_state.id)
+                        resp_var = st.selectbox("Select response variable for transformed data output", resp_var_options, key = st.session_state['key'])
 
                     # Filter data according to selected variables
                     if len(decomp_var) < 2:
@@ -5860,7 +5860,7 @@ def app():
 
                             # Adjust settings
                             if st.checkbox("Adjust Factor Analysis settings"):
-                                col1, col2 = st.beta_columns(2)
+                                col1, col2 = st.columns(2)
                                 with col1:
                                     nfactors = st.number_input("Number of factors", min_value=2, max_value=len(decomp_var), value=len(decomp_var))
                                     farotation = st.selectbox("Rotation", [None, "varimax", "promax", "oblimin", "oblimax", "quartimin", "quartimax", "equamax"])
@@ -6029,7 +6029,7 @@ def app():
                 expander_text = "Principal Component Analysis results"
             if DEC_alg == "Factor Analysis":
                 expander_text = "Factor Analysis results"
-            decomp_res1 = st.beta_expander(expander_text, expanded = False)
+            decomp_res1 = st.expander(expander_text, expanded = False)
             with decomp_res1:
                 
                 corr_matrix = df[decomp_var].corr()
@@ -6160,7 +6160,7 @@ def app():
                 # Factor Analysis
                 if DEC_alg == "Factor Analysis":
 
-                    col1, col2 = st.beta_columns(2)
+                    col1, col2 = st.columns(2)
                     with col1:
                         st.write("Bartlett's Sphericity test:")
                         st.table(decomp_results["BST"].style.set_precision(user_precision))
@@ -6246,7 +6246,7 @@ def app():
                     unsafe_allow_html=True)
                     st.write("")
 
-            decomp_res2 = st.beta_expander("Transformed data", expanded = False)
+            decomp_res2 = st.expander("Transformed data", expanded = False)
             with decomp_res2:
 
                 # Principal Component Analysis Output
