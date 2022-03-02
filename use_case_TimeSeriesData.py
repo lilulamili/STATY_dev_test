@@ -34,6 +34,20 @@ def app():
     # Hide traceback in error messages (comment out for de-bugging)
     sys.tracebacklimit = 0
 
+    # workaround for Firefox bug- hide the scrollbar while keeping the scrolling functionality
+    st.markdown("""
+        <style>
+        .ReactVirtualized__Grid::-webkit-scrollbar {
+        display: none;
+        }
+
+        .ReactVirtualized__Grid {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
     #++++++++++++++++++++++++++++++++++++++++++++
     # RESET INPUT
     

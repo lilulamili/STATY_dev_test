@@ -42,6 +42,19 @@ def app():
     # Show altair tooltip when full screen
     st.markdown('<style>#vg-tooltip-element{z-index: 1000051}</style>',unsafe_allow_html=True)
 
+    # workaround for Firefox bug- hide the scrollbar while keeping the scrolling functionality
+    st.markdown("""
+        <style>
+        .ReactVirtualized__Grid::-webkit-scrollbar {
+        display: none;
+        }
+
+        .ReactVirtualized__Grid {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+        }
+        </style>
+        """, unsafe_allow_html=True)
     #------------------------------------------------------------------------------------------
 
     #++++++++++++++++++++++++++++++++++++++++++++
