@@ -804,10 +804,7 @@ def app():
                 ticker.append(Class_ticker())
             return ticker
 
-        # delete session state if input widget change
-        def in_wid_change():
-            st.session_state['load_data_button'] = None
-        
+               
         # function for multiselect ticker vs. company
         def ticker_dict_func(option):
             return ticker_dict[option]
@@ -1172,12 +1169,13 @@ def app():
         if st.session_state['load_data_button']:
             if stock_search_option =='Symbol':
                 if (yf.Ticker(sel_stock_string).info['longName'] == None):
-                    st.error('Cannot get any data on ' + sel_stock_string + ', so the ticker probably does not exist!')
+                    st.error('Cannot get any data on ' + sel_stock_string + ', so the ticker probably does not exist!  \n Please check spelling, or try another ticker symbol!')
                     return
 
             c3 = st.container()
             my_bar = st.progress(0.0)
-            progress_sum = len(index_list) + 7
+            progress_sum = len(index_list) + len(tb_options)+len(tkpi_options)
+           
             progress = 0
 
             if selected_stock != st.session_state['selected_stock'] or load_data_button:
@@ -1238,7 +1236,9 @@ def app():
                             st.markdown("")
                             st.markdown('Company information for ' + ticker[i].company)
                             st.write(ticker[0].data.info['longBusinessSummary'])   
-                            
+            #progress
+            progress += 1
+            my_bar.progress(progress/progress_sum)                
                     
 
             # basic info
@@ -1252,7 +1252,10 @@ def app():
                             st.markdown("")                               
                             st.markdown('Institutional holders for ' + ticker[i].company +":")
                             st.write(ticker[i].data.institutional_holders)  
-             
+            #progress
+            progress += 1
+            my_bar.progress(progress/progress_sum)
+
             #Stock price
             if 'Stock Price' in tb_output:
                 with st.expander('Stock Price'):
@@ -1309,6 +1312,9 @@ def app():
                         df_history.columns = selected_company
 
                     st.line_chart(df_history)
+            #progress
+            progress += 1
+            my_bar.progress(progress/progress_sum)        
             
             # Balance Sheet
             if 'Balance Sheet' in tb_output:
@@ -1323,7 +1329,7 @@ def app():
                             df_bs=ticker[index_list[0]].data.balance_sheet
                             
                     if len(index_list) > 1:
-                        selected_year =  st.selectbox('select year', list_years, key=11)
+                        selected_year =  st.selectbox('select year', list_years, key=4)
                         year_id=max(list_years)-selected_year 
                      
                         for i in index_list:
@@ -1342,7 +1348,9 @@ def app():
                                 df_bs[ticker[i].company]=df_col
                     
                     st.dataframe(df_bs.style.format("{:.2f}"))
-
+            #progress
+            progress += 1
+            my_bar.progress(progress/progress_sum)    
 
             # Cashflow
             if 'Cashflow' in tb_output:
@@ -1357,7 +1365,7 @@ def app():
                             df_cf=ticker[index_list[0]].data.cashflow
                             
                     if len(index_list) > 1:
-                        selected_year =  st.selectbox('select year', list_years, key=1)
+                        selected_year =  st.selectbox('select year', list_years, key=5)
                         year_id=max(list_years)-selected_year 
 
                         for i in index_list:
@@ -1376,7 +1384,9 @@ def app():
                                 df_cf[ticker[i].company]=df_col
                     
                     st.dataframe(df_cf.style.format("{:.2f}"))
-          
+            #progress
+            progress += 1
+            my_bar.progress(progress/progress_sum)
 
             # Other financials
             if 'Other Financials' in tb_output:
@@ -1390,7 +1400,7 @@ def app():
                             df_of=ticker[index_list[0]].data.financials
                             
                     if len(index_list) > 1:
-                        selected_year =  st.selectbox('select year', list_years, key=12)
+                        selected_year =  st.selectbox('select year', list_years, key=6)
                         year_id=max(list_years)-selected_year 
 
                         for i in index_list:
@@ -1410,6 +1420,38 @@ def app():
                     
                     st.dataframe(df_of)
        
+            #progress
+            progress += 1
+            my_bar.progress(progress/progress_sum)
+
+            if len(tb_output)>0:
+                #download excel file
+                st.markdown("")
+                output = BytesIO()
+                excel_file = pd.ExcelWriter(output, engine="xlsxwriter")
+                
+                if 'Balance Sheet' in tb_output:
+                    df_bs.to_excel(excel_file, sheet_name='Balance sheet')
+                if 'Stock Price' in tb_output:
+                    df_history.to_excel(excel_file, sheet_name='Stock Price')
+                if 'Cashflow' in tb_output:
+                    df_cf.to_excel(excel_file, sheet_name='Cashflow')               
+                if 'Other Financials' in tb_output:
+                    df_of.to_excel(excel_file, sheet_name='Other Financials')
+                    
+
+                excel_file.save()
+                excel_file = output.getvalue()
+                b64 = base64.b64encode(excel_file)
+                dl_file_name = "Stock Basic Info.xlsx"
+                st.markdown(
+                    f"""
+                <a href="data:file/excel_file;base64,{b64.decode()}" id="button_dl" download="{dl_file_name}">Download Stock Basic Info</a>
+                """,
+                unsafe_allow_html=True)    
+
+
+
 
 
             #------------------------------------------------------------------------
@@ -1427,7 +1469,7 @@ def app():
                             ticker[index_list[0]].kpi_profitability(y)
                             df_profitability = fill_df_func(df_profitability, ticker, index_list[0], label_index, y)
                     if len(index_list) > 1:
-                        selected_year =  st.selectbox('select year', list_years, key=4)
+                        selected_year =  st.selectbox('select year', list_years, key=7)
                         for i in index_list:
                             if selected_year in ticker[i].bs.columns:
                                 ticker[i].kpi_profitability(selected_year)
@@ -1457,7 +1499,7 @@ def app():
                             ticker[index_list[0]].kpi_debt_capital(y)
                             df_debt_capital = fill_df_func(df_debt_capital, ticker, index_list[0], label_index, y)
                     if len(index_list) > 1:
-                        selected_year =  st.selectbox('select year', list_years, key=5)
+                        selected_year =  st.selectbox('select year', list_years, key=8)
                         for i in index_list:
                             if selected_year in ticker[i].bs.columns:
                                 ticker[i].kpi_debt_capital(selected_year)
@@ -1527,7 +1569,7 @@ def app():
                             ticker[index_list[0]].kpi_capital_procurement(y)
                             df_capital_procurement = fill_df_func(df_capital_procurement, ticker, index_list[0], label_index, y)
                     if len(index_list) > 1:
-                        selected_year =  st.selectbox('select year', list_years, key=6)
+                        selected_year =  st.selectbox('select year', list_years, key=9)
                         for i in index_list:
                             if selected_year in ticker[i].bs.columns:
                                 ticker[i].kpi_capital_procurement(selected_year)
@@ -1557,7 +1599,7 @@ def app():
                             ticker[index_list[0]].kpi_capital_allocation(y)
                             df_capital_allocation = fill_df_func(df_capital_allocation, ticker, index_list[0], label_index, y)
                     if len(index_list) > 1:
-                        selected_year =  st.selectbox('select year', list_years, key=7)
+                        selected_year =  st.selectbox('select year', list_years, key=10)
                         for i in index_list:
                             if selected_year in ticker[i].bs.columns:
                                 ticker[i].kpi_capital_allocation(selected_year)
@@ -1587,7 +1629,7 @@ def app():
                             ticker[index_list[0]].kpi_procurement_market(y)
                             df_procurement_market = fill_df_func(df_procurement_market, ticker, index_list[0], label_index, y)
                     if len(index_list) > 1:
-                        selected_year =  st.selectbox('select year', list_years, key=8)
+                        selected_year =  st.selectbox('select year', list_years, key=11)
                         for i in index_list:
                             if selected_year in ticker[i].bs.columns:
                                 ticker[i].kpi_procurement_market(selected_year)
@@ -1605,9 +1647,9 @@ def app():
             my_bar.progress(progress/progress_sum)
             if progress == progress_sum:
                 c3suc_msg=c3.success('Data loading is completed!')
-                time.sleep(2)
-                my_bar.empty()
-                c3suc_msg.empty()
+                #time.sleep(2)
+                #my_bar.empty()
+                #c3suc_msg.empty()
 
             if len(tkpi_output)>0:
                 #download excel file
