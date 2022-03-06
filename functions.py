@@ -1156,7 +1156,7 @@ def regression_models(X_ini, Y_ini, expl_var,reg_technique,poly_order):
     return  mlr_reg_inf, mlr_reg_stats, mlr_reg_anova, mlr_reg_coef,X_data, Y_data, Y_pred
 
 #------------------------------------------------------------------------------------------
-#FUNCTIONS FOR STCOK DATA ANALYSIS
+#FUNCTIONS FOR STOCK DATA ANALYSIS
 def  get_stock_list(index_name,web_page,table_no, symbol_col, company_col, sector_col):
     if index_name=='CSI300':
         payload=pd.read_html(web_page,converters={'Index': str})

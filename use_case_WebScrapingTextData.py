@@ -721,25 +721,35 @@ def app():
             FTSE = c4.checkbox('FTSE', False, on_change=in_wid_change)
             KOSPI = c4.checkbox('KOSPI', False, on_change=in_wid_change)
 
-        else:
-            selected_stock = st.text_input("Enter a stock ticker symbol", "TSLA")
-            sel_stock_string=selected_stock
-            try:
-                yf.Ticker(sel_stock_string).info['longName']
+        else: #selected option is 'Symbol'
+            selected_stock = st.text_input("Enter at least one stock ticker symbol! Please use space for ticker symbol separation!", "TSLA")
+            selected_stock=(list(selected_stock.split(" ")))
+            selected_stock = list(filter(None, selected_stock))
+            list_companies=[]
+            list_symbols = []           
+            list_sectors = []
+            list_stockindex = []
+           
+
+            for i in range(len(selected_stock)):
+                sel_stock_string=selected_stock[i]
                 
-            except:    
-                st.error('Cannot get any data on ' + sel_stock_string + ', so the ticker probably does not exist!  \n Please check spelling, or try another ticker symbol!')
-                return
-            list_companies = yf.Ticker(selected_stock).info['longName']
-          
-            if len(selected_stock)>0:
-                selected_stock=(list(selected_stock.split(" ")))
-            else:
-                selected_stock=[]   
-            list_symbols = selected_stock
+                try:
+                    yf.Ticker(sel_stock_string).info['longName']
+                    
+                except:    
+                    st.error('Cannot get any data on ' + sel_stock_string + ', so the ticker probably does not exist!  \n Please check spelling, or try another ticker symbol!')
+                    return
+                  
+                list_companies.append(yf.Ticker(selected_stock[i]).info['longName'])                    
+                list_sectors.append('XX')
+                list_stockindex.append('XX')
             
-            list_sectors = 'XX'
-            list_stockindex = 'XX'
+            list_symbols = selected_stock            
+
+            if len(selected_stock)==0:            
+                selected_stock=[]            
+                
         
         #--------------------------------
         # Get lists of company's/tickers 
@@ -1005,13 +1015,9 @@ def app():
         
         #----------------------------------------------------------------------------------------------
         # load ticker
-        if stock_search_option=='Symbol':
-            list_symbols = selected_stock               
-            list_companies = yf.Ticker(sel_stock_string).info['longName']
-            list_sectors = 'XX'
-            list_stockindex = 'XX'
-
-            df_indicesdata = pd.DataFrame({'Ticker': list_symbols, 'Company': list_companies, 'Sector': list_sectors, 'Stock index': list_stockindex}, index=[0])
+        if stock_search_option=='Symbol':        
+            
+            df_indicesdata = pd.DataFrame({'Ticker': list_symbols, 'Company': list_companies, 'Sector': list_sectors, 'Stock index': list_stockindex})
             symbols_SP, symbols_DAX, symbols_FTSE, symbols_BSE, symbols_CAC, symbols_CSI, symbols_KO, symbols_NIK=[],[],[],[],[],[] ,[] ,[]  
         else:
             df_indicesdata, symbols_SP, symbols_DAX, symbols_FTSE, symbols_BSE, symbols_CAC, symbols_CSI, symbols_KO, symbols_NIK = load_ticker()
@@ -1101,12 +1107,13 @@ def app():
             selected_stock = st.multiselect('Select at least one company', ticker_options, default , format_func=ticker_dict_func, on_change=in_wid_change)
         else:
             list_symbols = selected_stock            
-            list_companies = ticker[0].data.info['longName']
-            list_sectors = 'XX'
-            list_stockindex = 'XX'
+            #list_companies = ticker[0].data.info['longName']
+            #list_sectors = 'XX'
+            #list_stockindex = 'XX'            
 
-            df_indicesdata = pd.DataFrame({'Ticker': list_symbols, 'Company': list_companies, 'Sector': list_sectors, 'Stock index': list_stockindex}, index=[0])
-                 
+            df_indicesdata = pd.DataFrame({'Ticker': list_symbols, 'Company': list_companies, 'Sector': list_sectors, 'Stock index': list_stockindex})
+            #st.write(df_indicesdata)   
+
         # output specification
         tb_options=['Basic info','Institutional Holders','Stock Price', 'Balance Sheet', 'Cashflow','Other Financials']
         tkpi_options= ['Profitability', 'Debt Capital', 'Equity Capital','Valuation', 'Capital Procurement','Capital Allocation','Procurement Market']
@@ -1166,11 +1173,7 @@ def app():
         if load_data_button:
             st.session_state['load_data_button'] = load_data_button
 
-        if st.session_state['load_data_button']:
-            if stock_search_option =='Symbol':
-                if (yf.Ticker(sel_stock_string).info['longName'] == None):
-                    st.error('Cannot get any data on ' + sel_stock_string + ', so the ticker probably does not exist!  \n Please check spelling, or try another ticker symbol!')
-                    return
+        if st.session_state['load_data_button']:          
 
             c3 = st.container()
             my_bar = st.progress(0.0)
@@ -1647,9 +1650,9 @@ def app():
             my_bar.progress(progress/progress_sum)
             if progress == progress_sum:
                 c3suc_msg=c3.success('Data loading is completed!')
-                #time.sleep(2)
-                #my_bar.empty()
-                #c3suc_msg.empty()
+                time.sleep(2)
+                my_bar.empty()
+                c3suc_msg.empty()
 
             if len(tkpi_output)>0:
                 #download excel file
